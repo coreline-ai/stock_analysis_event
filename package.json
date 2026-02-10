@@ -7,11 +7,18 @@
     "dev": "next dev",
     "dev:3333": "next dev -p 3333",
     "dev:3333:all": "next dev -p 3333 -H 0.0.0.0",
+    "dev:up": "bash scripts/dev_up.sh",
+    "dev:down": "bash scripts/dev_down.sh",
+    "dev:status": "bash scripts/dev_status.sh",
+    "dev:local": "bash scripts/dev_local.sh",
     "build": "next build",
     "start": "next start",
     "start:3333": "next start -p 3333",
     "lint": "next lint",
-    "test": "tsx scripts/run_tests.ts"
+    "test": "tsx scripts/run_tests.ts",
+    "db:up": "bash scripts/db_up.sh",
+    "db:down": "bash scripts/db_down.sh",
+    "db:migrate": "tsx scripts/db_migrate.ts"
   },
   "dependencies": {
     "next": "14.2.6",

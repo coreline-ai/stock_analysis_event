@@ -153,6 +153,14 @@
 - [x] 대시보드 레이아웃 개선 (요약 카드 + 리스트 + 메타)
 - [x] 빈 상태/에러 상태 UI 개선
 
+## WS-P 로컬 개발 UX / 자동 실행
+
+- [x] `docker-compose.yml` 로컬 Postgres 추가 (host port `15432`)
+- [x] 마이그레이션 러너 추가 (`scripts/db_migrate.ts`, `npm run db:migrate`)
+- [x] 원커맨드 로컬 부팅 (`npm run dev:local` = db up + migrate + dev server)
+- [x] 대시보드에서 `DATABASE_URL` 미설정 시 즉시 실행 가능한 안내 표시
+- [x] 로컬 검증: `/api/health` 200, `/api/agent/trigger` 200(토큰), `/dashboard` 200
+
 ---
 
 ## 통합/머지 순서

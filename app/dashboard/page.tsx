@@ -4,15 +4,19 @@ import { listReports } from "@/adapters/db/repositories/daily_reports_repo";
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
+  const hasDb = Boolean(process.env.DATABASE_URL);
+
   let decisions = [] as Awaited<ReturnType<typeof listDecisions>>;
   let reports = [] as Awaited<ReturnType<typeof listReports>>;
   let error = "";
 
-  try {
-    decisions = await listDecisions(20);
-    reports = await listReports(5);
-  } catch (err) {
-    error = err instanceof Error ? err.message : "failed_to_load";
+  if (hasDb) {
+    try {
+      decisions = await listDecisions(20);
+      reports = await listReports(5);
+    } catch (err) {
+      error = err instanceof Error ? err.message : "failed_to_load";
+    }
   }
 
   const buyNow = decisions.filter((d) => d.verdict === "BUY_NOW");
@@ -55,6 +59,25 @@ export default async function DashboardPage() {
         <section className="card" style={{ marginTop: 24 }}>
           <h3>Data Error</h3>
           <p>{error}</p>
+        </section>
+      ) : null}
+
+      {!hasDb ? (
+        <section className="card" style={{ marginTop: 24 }}>
+          <h3>Local Setup Needed</h3>
+          <p>This dashboard reads from Postgres. Right now `DATABASE_URL` is not set.</p>
+          <p>Fastest local path (docker + migrate + dev server):</p>
+          <pre style={{ marginTop: 12, padding: 12, background: "rgba(255,255,255,0.06)", borderRadius: 10, overflowX: "auto" }}>
+            <code>npm run dev:local</code>
+          </pre>
+          <p style={{ marginTop: 12 }}>
+            After the server is up, trigger a run (auth required):
+          </p>
+          <pre style={{ marginTop: 12, padding: 12, background: "rgba(255,255,255,0.06)", borderRadius: 10, overflowX: "auto" }}>
+            <code>
+              {`curl -X POST http://localhost:3333/api/agent/trigger \\\n  -H 'x-api-token: dev-token'`}
+            </code>
+          </pre>
         </section>
       ) : null}
 

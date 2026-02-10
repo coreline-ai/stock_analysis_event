@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: mahoraga
+      POSTGRES_PASSWORD: mahoraga
+      POSTGRES_DB: mahoraga
+    ports:
+      - "15432:5432"
+    volumes:
+      - mahoraga_pg:/var/lib/postgresql/data
+
+volumes:
+  mahoraga_pg:
