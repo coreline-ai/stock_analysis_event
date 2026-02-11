@@ -3,6 +3,14 @@ set -euo pipefail
 
 PORT="${PORT:-3333}"
 PID_FILE="${PID_FILE:-/tmp/mahoraga-dev.pid}"
+AGENT_LABEL="${AGENT_LABEL:-com.stock_analysis_event.dev}"
+PLIST_FILE="${PLIST_FILE:-$HOME/Library/LaunchAgents/${AGENT_LABEL}.plist}"
+
+if [[ "$(uname -s)" == "Darwin" ]] && command -v launchctl >/dev/null 2>&1; then
+  uid="$(id -u)"
+  launchctl bootout "gui/${uid}/${AGENT_LABEL}" >/dev/null 2>&1 || true
+  launchctl unload -w "${PLIST_FILE}" >/dev/null 2>&1 || true
+fi
 
 if [[ -f "${PID_FILE}" ]]; then
   pid="$(cat "${PID_FILE}")"

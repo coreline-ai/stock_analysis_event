@@ -8,7 +8,13 @@ export const SOURCE_CONFIG = {
     sec_8k: 0.95,
     sec_4: 0.9,
     news: 0.7,
-    crypto: 0.8
+    crypto: 0.8,
+    naver: 0.7,
+    dart: 0.95,
+    kr_community: 0.55,
+    kr_news: 0.8,
+    kr_research: 0.92,
+    kr_global_context: 0.75
   },
   decayHalfLifeMinutes: 120,
   engagement: {

@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { requireEnv } from "@/config/runtime";
+import { getBooleanEnv } from "@/config/runtime";
 
 export function getAuthToken(req: NextRequest): string | null {
   const auth = req.headers.get("authorization");
@@ -12,7 +12,16 @@ export function getAuthToken(req: NextRequest): string | null {
 }
 
 export function assertApiAuth(req: NextRequest): void {
-  const expected = requireEnv("MAHORAGA_API_TOKEN");
+  const devBypass = getBooleanEnv("DEV_AUTH_BYPASS", getBooleanEnv("MAHORAGA_DEV_AUTH_BYPASS", true));
+  // In local/dev, auth can be bypassed unless explicitly disabled.
+  if (process.env.NODE_ENV !== "production" && devBypass) {
+    return;
+  }
+
+  const expected = process.env.API_TOKEN ?? process.env.MAHORAGA_API_TOKEN;
+  if (!expected) {
+    throw new Error("Missing required env: API_TOKEN");
+  }
   const token = getAuthToken(req);
   if (!token || token !== expected) {
     throw new Error("unauthorized");

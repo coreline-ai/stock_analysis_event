@@ -1,4 +1,7 @@
+import { detectSentimentKr } from "./sentiment_kr";
+
 export function detectSentiment(text: string): number {
+  if (/[가-힣]/.test(text)) return detectSentimentKr(text);
   const lower = text.toLowerCase();
   const bullish = [
     "moon",

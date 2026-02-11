@@ -1,6 +1,17 @@
 import { getNumberEnv } from "./runtime";
 
-export const LIMITS = {
+export interface PipelineLimits {
+  gatherMaxItemsPerSource: number;
+  scoreTopN: number;
+  decideTopN: number;
+  llmMaxSignalsPerRun: number;
+  llmMaxCallsPerRun: number;
+  llmMaxTokensPerCall: number;
+  minSecondsBetweenRuns: number;
+  runMaxSeconds: number;
+}
+
+export const LIMITS: PipelineLimits = {
   gatherMaxItemsPerSource: getNumberEnv("GATHER_MAX_ITEMS_PER_SOURCE", 200),
   scoreTopN: getNumberEnv("SCORE_TOP_N", 50),
   decideTopN: getNumberEnv("DECIDE_TOP_N", 10),

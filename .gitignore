@@ -85,6 +85,8 @@ walkthrough.md.resolved
 # Node.js (Root & Web)
 node_modules/
 .next/
+.next-dev/
+.next.bak.*/
 out/
 .pnp
 .pnp.js

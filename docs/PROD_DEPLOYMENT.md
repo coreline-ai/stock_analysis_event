@@ -4,14 +4,17 @@
 
 ## 1) 필수 환경 변수
 
-- `MAHORAGA_API_TOKEN`
+- `API_TOKEN` (또는 레거시 `MAHORAGA_API_TOKEN`)
 - `CRON_SECRET`
 - `DATABASE_URL`
-- `OPENAI_API_KEY`
+- `LLM_PROVIDER` (`glm` 권장)
+- `GLM_API_KEY` (또는 `OPENAI_API_KEY`)
 
 권장:
 - `UPSTASH_REDIS_REST_URL`
 - `UPSTASH_REDIS_REST_TOKEN`
+- `DEFAULT_MARKET_SCOPE` (`US` | `KR` | `ALL`)
+- `DEFAULT_STRATEGY_KEY` (`us_default` | `kr_default` | `all_default`)
 - `PUBLIC_BASE_URL`
 - `GATHER_MAX_ITEMS_PER_SOURCE`
 - `SCORE_TOP_N`
@@ -21,6 +24,13 @@
 - `LLM_MAX_TOKENS_PER_CALL`
 - `MIN_SECONDS_BETWEEN_RUNS`
 - `RUN_MAX_SECONDS`
+- `KR_MARKET_ENABLED`
+- `DART_API_KEY` (KR 실행 시 권장)
+- `NAVER_ENABLED`
+- `DART_ENABLED`
+- `KR_COMMUNITY_ENABLED`
+- `KR_NEWS_ENABLED`
+- `US_*`, `KR_*`, `ALL_*` 전략별 제한치 오버라이드 (`*_GATHER_MAX_ITEMS_PER_SOURCE`, `*_DECIDE_TOP_N`, `*_LLM_MAX_*`)
 
 ## 2) 금지 환경 변수
 
@@ -48,7 +58,7 @@
 
 ## 5) DB 마이그레이션
 
-- `db/migrations/001_init.sql`을 운영 DB에 적용
+- `db/migrations/001_init.sql`과 `db/migrations/002_market_scope.sql`을 운영 DB에 적용
 
 ## 6) 운영 확인
 
@@ -59,6 +69,7 @@
 ## 7) 운영 주의사항
 
 - `LLM_PROVIDER=stub`는 운영에서 사용하지 않는다.
+- GLM 사용 시 `GLM_BASE_URL`, `GLM_MODEL`, `GLM_TEMPERATURE`, `GLM_THINKING_TYPE=disabled`를 명시한다.
 - 비용 제한(`LLM_MAX_*`)을 반드시 설정한다.
 
 ## 8) 배포 전 점검

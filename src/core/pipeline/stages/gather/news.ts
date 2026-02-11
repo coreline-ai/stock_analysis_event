@@ -1,5 +1,5 @@
 import type { SignalRaw } from "@/core/domain/types";
-import { extractTickerCandidates } from "../normalize/symbol_map";
+import { extractKrTickerCandidates, extractTickerCandidates } from "../normalize/symbol_map";
 import { nowIso } from "@/core/utils/time";
 import { getEnv } from "@/config/runtime";
 import { fetchJson, fetchText } from "./http";
@@ -68,6 +68,60 @@ export async function gatherNews(limit = 20): Promise<SignalRaw[]> {
       collectedAt: nowIso(),
       engagement: null,
       rawPayload: { source_detail: "google_news_rss" }
+    } satisfies SignalRaw;
+  });
+}
+
+export async function gatherKrNews(limit = 20): Promise<SignalRaw[]> {
+  const apiKey = getEnv("NEWS_API_KEY");
+  if (apiKey) {
+    const data = await fetchJson<{ articles?: Array<any> }>(
+      `https://newsapi.org/v2/everything?q=한국%20주식%20OR%20코스피%20OR%20코스닥&language=ko&pageSize=${limit}&apiKey=${apiKey}`
+    );
+    if (!data) return [];
+    const articles = data.articles ?? [];
+    return articles.map((a) => {
+      const title = a.title ?? "";
+      const body = a.description ?? "";
+      const text = `${title} ${body}`.trim();
+      const symbols = [...extractKrTickerCandidates(text), ...extractTickerCandidates(text)];
+      return {
+        source: "kr_news",
+        externalId: a.url ?? `kr_news_${Date.now()}`,
+        symbolCandidates: symbols,
+        title,
+        body: body || null,
+        url: a.url ?? null,
+        author: a.author ?? null,
+        publishedAt: a.publishedAt ?? null,
+        collectedAt: nowIso(),
+        engagement: null,
+        rawPayload: { source_detail: "newsapi_kr", market_scope: "KR" }
+      } satisfies SignalRaw;
+    });
+  }
+
+  const xml = await fetchText(
+    "https://news.google.com/rss/search?q=한국%20주식%20OR%20코스피%20OR%20코스닥%20OR%20%EC%82%BC%EC%84%B1%EC%A0%84%EC%9E%90&hl=ko&gl=KR&ceid=KR:ko"
+  );
+  if (!xml) return [];
+  const items = parseRssItems(xml);
+
+  return items.slice(0, limit).map((item) => {
+    const text = `${item.title}`.trim();
+    const symbols = [...extractKrTickerCandidates(text), ...extractTickerCandidates(text)];
+    return {
+      source: "kr_news",
+      externalId: item.link || `kr_news_${Date.now()}`,
+      symbolCandidates: symbols,
+      title: item.title,
+      body: null,
+      url: item.link || null,
+      author: null,
+      publishedAt: item.pubDate ? new Date(item.pubDate).toISOString() : null,
+      collectedAt: nowIso(),
+      engagement: null,
+      rawPayload: { source_detail: "google_news_rss_kr", market_scope: "KR" }
     } satisfies SignalRaw;
   });
 }

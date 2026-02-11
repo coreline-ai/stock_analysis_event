@@ -48,6 +48,12 @@ export function normalizeSymbol(symbol: string): string | null {
   return upper;
 }
 
+export function normalizeKrSymbol(symbol: string): string | null {
+  const trimmed = symbol.trim();
+  if (!/^\d{6}$/.test(trimmed)) return null;
+  return trimmed;
+}
+
 export function extractTickerCandidates(text: string): string[] {
   const matches = new Set<string>();
   const regex = /\$([A-Za-z]{1,5})\b|\b([A-Z]{2,5})\b(?=\s+(?:stock|shares?|calls?|puts?|buy|sell|long|short|moon|pump|dump))/g;
@@ -56,6 +62,19 @@ export function extractTickerCandidates(text: string): string[] {
     const candidate = match[1] || match[2];
     if (!candidate) continue;
     const normalized = normalizeSymbol(candidate);
+    if (normalized) matches.add(normalized);
+  }
+  return Array.from(matches);
+}
+
+export function extractKrTickerCandidates(text: string): string[] {
+  const matches = new Set<string>();
+  const regex = /\b(\d{6})\b/g;
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(text)) !== null) {
+    const candidate = match[1];
+    if (!candidate) continue;
+    const normalized = normalizeKrSymbol(candidate);
     if (normalized) matches.add(normalized);
   }
   return Array.from(matches);

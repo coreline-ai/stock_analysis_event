@@ -1,5 +1,5 @@
 import { query } from "@/adapters/db/client";
-import type { Decision } from "@/core/domain/types";
+import type { Decision, MarketScope } from "@/core/domain/types";
 
 export async function insertDecision(decision: Decision): Promise<string> {
   const rows = await query<{ id: string }>(
@@ -7,9 +7,9 @@ export async function insertDecision(decision: Decision): Promise<string> {
     INSERT INTO decisions
       (symbol, verdict, confidence, time_horizon, thesis_summary, entry_trigger, invalidation,
        risk_notes, bull_case, bear_case, red_flags, catalysts, sources_used,
-       llm_model, prompt_version, schema_version, created_at)
+       llm_model, prompt_version, schema_version, market_scope, created_at)
     VALUES
-      ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+      ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
     RETURNING id
     `,
     [
@@ -29,17 +29,21 @@ export async function insertDecision(decision: Decision): Promise<string> {
       decision.llmModel,
       decision.promptVersion,
       decision.schemaVersion,
+      decision.marketScope ?? "US",
       decision.createdAt
     ]
   );
   return rows[0]?.id ?? "";
 }
 
-export async function listDecisions(limit = 50, offset = 0): Promise<Decision[]> {
+export async function listDecisions(limit = 50, offset = 0, scope?: MarketScope): Promise<Decision[]> {
+  const whereClause = scope ? `WHERE market_scope = $3` : "";
+  const params = scope ? [limit, offset, scope] : [limit, offset];
   return query<Decision>(
     `SELECT
       id,
       symbol,
+      market_scope as "marketScope",
       verdict,
       confidence,
       time_horizon as "timeHorizon",
@@ -57,8 +61,16 @@ export async function listDecisions(limit = 50, offset = 0): Promise<Decision[]>
       schema_version as "schemaVersion",
       created_at as "createdAt"
      FROM decisions
+     ${whereClause}
      ORDER BY created_at DESC
      LIMIT $1 OFFSET $2`,
-    [limit, offset]
+    params
   );
+}
+
+export async function countDecisions(scope?: MarketScope): Promise<number> {
+  const whereClause = scope ? `WHERE market_scope = $1` : "";
+  const params = scope ? [scope] : [];
+  const rows = await query<{ count: string }>(`SELECT COUNT(*)::text as count FROM decisions ${whereClause}`, params);
+  return Number(rows[0]?.count ?? "0");
 }

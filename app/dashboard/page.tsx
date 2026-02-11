@@ -1,126 +1,221 @@
-import { listDecisions } from "@/adapters/db/repositories/decisions_repo";
-import { listReports } from "@/adapters/db/repositories/daily_reports_repo";
+"use client";
 
-export const dynamic = "force-dynamic";
+import { useEffect, useMemo, useState } from "react";
+import type { AgentRun, Decision, DailyReport } from "@/core/domain/types";
+import { apiRequest } from "./_components/api_client";
+import { useDashboardContext } from "./_components/dashboard_context";
+import { marketScopeLabel, runStatusLabel, sourceLabel, stageLabel, triggerLabel, verdictLabel } from "./_components/labels";
+import { trackEvent } from "./_components/telemetry";
+import { EmptyState, ErrorState, LoadingBlock } from "./_components/ui_primitives";
 
-export default async function DashboardPage() {
-  const hasDb = Boolean(process.env.DATABASE_URL);
+interface SummaryResponse {
+  kpi: {
+    buyNow: number;
+    watch: number;
+    avoid: number;
+    decisions: number;
+    reports: number;
+    runs: number;
+    usDecisions: number;
+    krDecisions: number;
+  };
+  runHealth: {
+    success: number;
+    partial: number;
+    failed: number;
+    successRate: number;
+    avgDurationMs: number;
+    latestRun: AgentRun | null;
+  };
+  latest: {
+    decisions: Decision[];
+    reports: DailyReport[];
+  };
+}
 
-  let decisions = [] as Awaited<ReturnType<typeof listDecisions>>;
-  let reports = [] as Awaited<ReturnType<typeof listReports>>;
-  let error = "";
+function percent(value: number): string {
+  return `${Math.round(value * 100)}%`;
+}
 
-  if (hasDb) {
-    try {
-      decisions = await listDecisions(20);
-      reports = await listReports(5);
-    } catch (err) {
-      error = err instanceof Error ? err.message : "failed_to_load";
+export default function DashboardCockpitPage() {
+  const { token, refreshKey, setAuthRequired } = useDashboardContext();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [summary, setSummary] = useState<SummaryResponse | null>(null);
+
+  useEffect(() => {
+    void trackEvent({ name: "page_view", page: "/dashboard" });
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      setError("");
+      const res = await apiRequest<SummaryResponse>("/api/agent/summary", { token });
+      if (cancelled) return;
+      setLoading(false);
+      if (!res.ok) {
+        if (res.status === 401) setAuthRequired(true);
+        setSummary(null);
+        setError(res.error);
+        return;
+      }
+      setSummary(res.data);
     }
-  }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [token, refreshKey, setAuthRequired]);
 
-  const buyNow = decisions.filter((d) => d.verdict === "BUY_NOW");
-  const watch = decisions.filter((d) => d.verdict === "WATCH");
-  const avoid = decisions.filter((d) => d.verdict === "AVOID");
+  const sourcePairs = useMemo(() => {
+    const counts = summary?.runHealth.latestRun?.gatheredCounts ?? {};
+    return Object.entries(counts).sort((a, b) => (b[1] ?? 0) - (a[1] ?? 0));
+  }, [summary]);
+
+  const stagePairs = useMemo(() => {
+    const timings = summary?.runHealth.latestRun?.stageTimingsMs ?? {};
+    return Object.entries(timings).sort((a, b) => (b[1] ?? 0) - (a[1] ?? 0));
+  }, [summary]);
+
+  if (loading) return <LoadingBlock label="콕핏 데이터를 불러오는 중..." />;
+  if (error) return <ErrorState message={error} />;
+  if (!summary) return <EmptyState title="요약 데이터 없음" description="파이프라인 실행 후 콕핏을 새로고침하세요." />;
 
   return (
-    <main className="page">
+    <div className="dash-grid">
       <section className="hero">
-        <div className="pill-row">
-          <span className="pill">Dashboard</span>
-          <span className="pill">Latest Runs</span>
-          <span className="pill">Research-Only</span>
-        </div>
-        <h1 className="hero-title">Signal Overview</h1>
-        <p className="hero-subtitle">Live view of latest decisions and daily reports.</p>
-
+        <h1 className="hero-title">운영 콕핏</h1>
+        <p className="hero-subtitle">실행 상태, 판단 결과, 신호 처리량을 한눈에 확인합니다.</p>
         <div className="grid grid-3">
           <div className="card kpi">
-            <span className="badge">BUY_NOW</span>
-            <strong>{buyNow.length}</strong>
-            <span className="hero-subtitle">High conviction</span>
+            <span className="badge">{verdictLabel("BUY_NOW")}</span>
+            <strong>{summary.kpi.buyNow}</strong>
+            <span className="hero-subtitle">즉시 검토 후보</span>
           </div>
           <div className="card kpi">
-            <span className="badge badge-alt">WATCH</span>
-            <strong>{watch.length}</strong>
-            <span className="hero-subtitle">Monitor for triggers</span>
+            <span className="badge badge-alt">{verdictLabel("WATCH")}</span>
+            <strong>{summary.kpi.watch}</strong>
+            <span className="hero-subtitle">트리거 대기</span>
           </div>
           <div className="card kpi">
-            <span className="badge" style={{ color: "#ff8b8b", background: "rgba(255,139,139,0.15)" }}>
-              AVOID
-            </span>
-            <strong>{avoid.length}</strong>
-            <span className="hero-subtitle">Risk or noise</span>
+            <span className="badge badge-red">{verdictLabel("AVOID")}</span>
+            <strong>{summary.kpi.avoid}</strong>
+            <span className="hero-subtitle">고위험 구간</span>
           </div>
         </div>
       </section>
 
-      {error ? (
-        <section className="card" style={{ marginTop: 24 }}>
-          <h3>Data Error</h3>
-          <p>{error}</p>
-        </section>
-      ) : null}
+      <section className="grid grid-2">
+        <div className="card kpi">
+          <span className="badge">미국 결정 수</span>
+          <strong>{summary.kpi.usDecisions}</strong>
+          <span className="hero-subtitle">US 스코프 누적</span>
+        </div>
+        <div className="card kpi">
+          <span className="badge badge-alt">한국 결정 수</span>
+          <strong>{summary.kpi.krDecisions}</strong>
+          <span className="hero-subtitle">KR 스코프 누적</span>
+        </div>
+      </section>
 
-      {!hasDb ? (
-        <section className="card" style={{ marginTop: 24 }}>
-          <h3>Local Setup Needed</h3>
-          <p>This dashboard reads from Postgres. Right now `DATABASE_URL` is not set.</p>
-          <p>Fastest local path (docker + migrate + dev server):</p>
-          <pre style={{ marginTop: 12, padding: 12, background: "rgba(255,255,255,0.06)", borderRadius: 10, overflowX: "auto" }}>
-            <code>npm run dev:local</code>
-          </pre>
-          <p style={{ marginTop: 12 }}>
-            After the server is up, trigger a run (auth required):
-          </p>
-          <pre style={{ marginTop: 12, padding: 12, background: "rgba(255,255,255,0.06)", borderRadius: 10, overflowX: "auto" }}>
-            <code>
-              {`curl -X POST http://localhost:3333/api/agent/trigger \\\n  -H 'x-api-token: dev-token'`}
-            </code>
-          </pre>
-        </section>
-      ) : null}
+      <section className="grid grid-3">
+        <div className="card">
+          <h3>실행 건전성</h3>
+          <p>성공률: {percent(summary.runHealth.successRate)}</p>
+          <p>성공 / 부분 / 실패: {summary.runHealth.success} / {summary.runHealth.partial} / {summary.runHealth.failed}</p>
+          <p>평균 소요: {summary.runHealth.avgDurationMs} ms</p>
+        </div>
+        <div className="card">
+          <h3>처리량</h3>
+          <p>실행: {summary.kpi.runs}</p>
+          <p>판단: {summary.kpi.decisions}</p>
+          <p>리포트: {summary.kpi.reports}</p>
+          <p>미국 판단: {summary.kpi.usDecisions}</p>
+          <p>한국 판단: {summary.kpi.krDecisions}</p>
+        </div>
+        <div className="card">
+          <h3>최근 실행</h3>
+          <p>상태: {runStatusLabel(summary.runHealth.latestRun?.status)}</p>
+          <p>시작: {summary.runHealth.latestRun?.startedAt ? new Date(summary.runHealth.latestRun.startedAt).toLocaleString() : "-"}</p>
+          <p>트리거: {triggerLabel(summary.runHealth.latestRun?.triggerType)}</p>
+          <p>시장: {marketScopeLabel(summary.runHealth.latestRun?.marketScope)}</p>
+          <p>전략: {summary.runHealth.latestRun?.strategyKey ?? "-"}</p>
+        </div>
+      </section>
 
-      <section>
-        <h2 className="section-title">Latest Decisions</h2>
-        <div className="list">
-          {decisions.length === 0 ? (
-            <div className="list-item">No decisions yet.</div>
+      <section className="grid grid-2">
+        <div className="card">
+          <h3>소스 처리량</h3>
+          {sourcePairs.length === 0 ? (
+            <p>수집된 소스 데이터가 아직 없습니다.</p>
           ) : (
-            decisions.map((d) => (
-              <div key={d.id} className="list-item">
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <strong>{d.symbol}</strong>
-                  <span className="badge">{d.verdict}</span>
+            <div className="metric-list">
+              {sourcePairs.map(([name, value]) => (
+                <div key={name} className="metric-row">
+                  <span>{sourceLabel(name)}</span>
+                  <strong>{value}</strong>
                 </div>
-                <p style={{ marginTop: 6 }}>{d.thesisSummary}</p>
-                <p className="hero-subtitle">Confidence: {Math.round(d.confidence * 100)}%</p>
-              </div>
-            ))
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="card">
+          <h3>단계별 소요 시간 (ms)</h3>
+          {stagePairs.length === 0 ? (
+            <p>단계별 소요 시간 데이터가 아직 없습니다.</p>
+          ) : (
+            <div className="metric-list">
+              {stagePairs.map(([name, value]) => (
+                <div key={name} className="metric-row">
+                  <span>{stageLabel(name)}</span>
+                  <strong>{Math.round(value)}</strong>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       </section>
 
-      <section>
-        <h2 className="section-title">Daily Reports</h2>
-        <div className="list">
-          {reports.length === 0 ? (
-            <div className="list-item">No reports yet.</div>
-          ) : (
-            reports.map((r) => (
-              <div key={r.id} className="list-item">
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <strong>{new Date(r.reportDate).toISOString().slice(0, 10)}</strong>
-                  <span className="badge badge-alt">Report</span>
+      <section className="grid grid-2">
+        <div className="card">
+          <h3>최근 판단</h3>
+          <div className="list">
+            {summary.latest.decisions.length === 0 ? (
+              <div className="list-item">판단 데이터가 아직 없습니다.</div>
+            ) : (
+              summary.latest.decisions.map((d) => (
+                <div key={d.id} className="list-item">
+                  <div className="list-item-head">
+                    <strong>{d.symbol}</strong>
+                    <span className="badge">{verdictLabel(d.verdict)}</span>
+                  </div>
+                  <p>{d.thesisSummary}</p>
                 </div>
-                <p style={{ marginTop: 6 }}>{r.summaryMarkdown.slice(0, 140)}...</p>
-              </div>
-            ))
-          )}
+              ))
+            )}
+          </div>
+        </div>
+        <div className="card">
+          <h3>최근 리포트</h3>
+          <div className="list">
+            {summary.latest.reports.length === 0 ? (
+              <div className="list-item">리포트 데이터가 아직 없습니다.</div>
+            ) : (
+              summary.latest.reports.map((r) => (
+                <div key={r.id} className="list-item">
+                  <div className="list-item-head">
+                    <strong>{new Date(r.reportDate).toISOString().slice(0, 10)}</strong>
+                    <span className="badge badge-alt">리포트</span>
+                  </div>
+                  <p>{r.summaryMarkdown.slice(0, 180)}...</p>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       </section>
-
-      <p className="footer">Use /api/agent/trigger for manual runs. Cron runs on schedule.</p>
-    </main>
+    </div>
   );
 }

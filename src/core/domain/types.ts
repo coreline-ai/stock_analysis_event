@@ -1,4 +1,16 @@
-export type SignalSource = "reddit" | "stocktwits" | "sec" | "news" | "crypto";
+export type SignalSource =
+  | "reddit"
+  | "stocktwits"
+  | "sec"
+  | "news"
+  | "crypto"
+  | "naver"
+  | "dart"
+  | "kr_community"
+  | "kr_news"
+  | "kr_research"
+  | "kr_global_context";
+export type MarketScope = "US" | "KR" | "ALL";
 
 export interface SignalRaw {
   id?: string;
@@ -23,6 +35,21 @@ export interface SignalScored {
   freshnessScore: number;
   sourceWeight: number;
   finalScore: number;
+  socialScore?: number;
+  eventScore?: number;
+  volumeScore?: number;
+  flowScore?: number;
+  technicalScore?: number;
+  quantScore?: number;
+  contextRiskScore?: number;
+  quantMultiplier?: number;
+  socialLayerPassed?: boolean;
+  eventLayerPassed?: boolean;
+  volumeGuardPassed?: boolean;
+  flowGuardPassed?: boolean;
+  technicalGuardPassed?: boolean;
+  tripleCrownPassed?: boolean;
+  hardFilterPassed?: boolean;
   reasonSummary?: string | null;
   scoredAt: string;
 }
@@ -32,6 +59,7 @@ export type DecisionVerdict = "BUY_NOW" | "WATCH" | "AVOID";
 export interface Decision {
   id?: string;
   symbol: string;
+  marketScope?: MarketScope;
   verdict: DecisionVerdict;
   confidence: number;
   timeHorizon: "intraday" | "swing" | "long_term";
@@ -53,6 +81,7 @@ export interface Decision {
 export interface DailyReport {
   id?: string;
   reportDate: string;
+  marketScope?: MarketScope;
   summaryMarkdown: string;
   topBuyNow: string[];
   topWatch: string[];
@@ -66,6 +95,8 @@ export type AgentRunStatus = "success" | "partial" | "failed";
 export interface AgentRun {
   id?: string;
   triggerType: "cron" | "manual";
+  marketScope?: MarketScope;
+  strategyKey?: string;
   startedAt: string;
   finishedAt?: string | null;
   status: AgentRunStatus;

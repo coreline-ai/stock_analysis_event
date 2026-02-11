@@ -1,5 +1,7 @@
 import { query } from "@/adapters/db/client";
-import type { SignalRaw } from "@/core/domain/types";
+import type { MarketScope, SignalRaw } from "@/core/domain/types";
+
+const KR_SOURCES = ["naver", "dart", "kr_community", "kr_news", "kr_research", "kr_global_context"] as const;
 
 export async function insertSignalRaw(signal: SignalRaw): Promise<string> {
   const rows = await query<{ id: string }>(
@@ -29,7 +31,15 @@ export async function insertSignalRaw(signal: SignalRaw): Promise<string> {
   return rows[0]?.id ?? "";
 }
 
-export async function listRecentRawSignals(limit = 50): Promise<SignalRaw[]> {
+export async function listRecentRawSignals(limit = 50, offset = 0, scope?: MarketScope): Promise<SignalRaw[]> {
+  const whereClause =
+    scope === "KR"
+      ? `WHERE source = ANY($3::text[])`
+      : scope === "US"
+        ? `WHERE NOT (source = ANY($3::text[]))`
+        : "";
+  const params = scope ? [limit, offset, KR_SOURCES] : [limit, offset];
+
   return query<SignalRaw>(
     `SELECT
       id,
@@ -41,12 +51,25 @@ export async function listRecentRawSignals(limit = 50): Promise<SignalRaw[]> {
       url,
       author,
       published_at as "publishedAt",
-      collected_at as "collectedAt",
-      engagement,
-      raw_payload as "rawPayload"
+     collected_at as "collectedAt",
+     engagement,
+     raw_payload as "rawPayload"
      FROM signals_raw
+     ${whereClause}
      ORDER BY collected_at DESC
-     LIMIT $1`,
-    [limit]
+     LIMIT $1 OFFSET $2`,
+    params
   );
+}
+
+export async function countRawSignals(scope?: MarketScope): Promise<number> {
+  const whereClause =
+    scope === "KR"
+      ? `WHERE source = ANY($1::text[])`
+      : scope === "US"
+        ? `WHERE NOT (source = ANY($1::text[]))`
+        : "";
+  const params = scope ? [KR_SOURCES] : [];
+  const rows = await query<{ count: string }>(`SELECT COUNT(*)::text as count FROM signals_raw ${whereClause}`, params);
+  return Number(rows[0]?.count ?? "0");
 }

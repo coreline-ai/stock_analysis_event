@@ -1,13 +1,15 @@
-import { requireEnv } from "@/config/runtime";
+import { getEnv, requireEnv } from "@/config/runtime";
 import type { LLMProvider, LLMRequest } from "./provider";
 
 export function createOpenAIProvider(): LLMProvider {
   const apiKey = requireEnv("OPENAI_API_KEY");
+  const baseUrl = getEnv("OPENAI_BASE_URL", "https://api.openai.com/v1");
+  const temperature = Number(getEnv("OPENAI_TEMPERATURE", "0.2"));
 
   return {
     name: "openai",
     async complete(req: LLMRequest): Promise<string> {
-      const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      const res = await fetch(`${baseUrl}/chat/completions`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -15,7 +17,7 @@ export function createOpenAIProvider(): LLMProvider {
         },
         body: JSON.stringify({
           model: req.model,
-          temperature: 0.2,
+          temperature: Number.isFinite(temperature) ? temperature : 0.2,
           messages: [
             { role: "system", content: req.system },
             { role: "user", content: req.user }

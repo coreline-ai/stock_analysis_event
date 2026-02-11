@@ -4,6 +4,7 @@ set -euo pipefail
 PORT="${PORT:-3333}"
 PID_FILE="${PID_FILE:-/tmp/mahoraga-dev.pid}"
 LOG_FILE="${LOG_FILE:-/tmp/mahoraga-dev.log}"
+AGENT_LABEL="${AGENT_LABEL:-com.stock_analysis_event.dev}"
 
 echo "port=${PORT}"
 
@@ -23,6 +24,20 @@ if [[ -f "${PID_FILE}" ]]; then
   fi
 else
   echo "supervisor_pid=(none)"
+fi
+
+if [[ "$(uname -s)" == "Darwin" ]] && command -v launchctl >/dev/null 2>&1; then
+  uid="$(id -u)"
+  if launchctl print "gui/${uid}/${AGENT_LABEL}" >/tmp/mahoraga-launchctl-status.txt 2>/dev/null; then
+    launch_pid="$(grep -m 1 'pid = ' /tmp/mahoraga-launchctl-status.txt | sed -E 's/.*pid = ([0-9]+).*/\1/' || true)"
+    if [[ -n "${launch_pid}" ]]; then
+      echo "launch_agent=${AGENT_LABEL} (running pid=${launch_pid})"
+    else
+      echo "launch_agent=${AGENT_LABEL} (loaded)"
+    fi
+  else
+    echo "launch_agent=${AGENT_LABEL} (not loaded)"
+  fi
 fi
 
 if [[ -f "${LOG_FILE}" ]]; then
