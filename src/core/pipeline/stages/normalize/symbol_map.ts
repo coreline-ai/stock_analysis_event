@@ -49,9 +49,11 @@ export function normalizeSymbol(symbol: string): string | null {
 }
 
 export function normalizeKrSymbol(symbol: string): string | null {
-  const trimmed = symbol.trim();
-  if (!/^\d{6}$/.test(trimmed)) return null;
-  return trimmed;
+  const trimmed = symbol.trim().toUpperCase();
+  const strippedPrefix = trimmed.startsWith("A") ? trimmed.slice(1) : trimmed;
+  const strippedSuffix = strippedPrefix.replace(/\.(KS|KQ)$/u, "");
+  if (!/^\d{6}$/.test(strippedSuffix)) return null;
+  return strippedSuffix;
 }
 
 export function extractTickerCandidates(text: string): string[] {

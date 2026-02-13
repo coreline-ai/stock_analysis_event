@@ -4,6 +4,7 @@ import { extractKrTickerCandidatesByName } from "../normalize/kr_ticker_cache";
 import { nowIso } from "@/core/utils/time";
 import { getEnv } from "@/config/runtime";
 import { fetchJson, fetchText } from "./http";
+import { buildKrMarketMetadata } from "./kr_market_meta";
 
 export function parseRssItems(xml: string): Array<{ title: string; link: string; pubDate: string }> {
   const items: Array<{ title: string; link: string; pubDate: string }> = [];
@@ -101,7 +102,11 @@ export async function gatherKrNews(limit = 20): Promise<SignalRaw[]> {
         publishedAt: a.publishedAt ?? null,
         collectedAt: nowIso(),
         engagement: null,
-        rawPayload: { source_detail: "newsapi_kr", market_scope: "KR" }
+        rawPayload: buildKrMarketMetadata({
+          title,
+          body,
+          base: { source_detail: "newsapi_kr", market_scope: "KR" }
+        })
       } satisfies SignalRaw;
     });
   }
@@ -130,7 +135,11 @@ export async function gatherKrNews(limit = 20): Promise<SignalRaw[]> {
       publishedAt: item.pubDate ? new Date(item.pubDate).toISOString() : null,
       collectedAt: nowIso(),
       engagement: null,
-      rawPayload: { source_detail: "google_news_rss_kr", market_scope: "KR" }
+      rawPayload: buildKrMarketMetadata({
+        title: item.title,
+        body: null,
+        base: { source_detail: "google_news_rss_kr", market_scope: "KR" }
+      })
     } satisfies SignalRaw;
   });
 }

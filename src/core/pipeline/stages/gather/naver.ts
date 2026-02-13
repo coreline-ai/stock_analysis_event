@@ -4,6 +4,7 @@ import { extractKrTickerCandidatesByName } from "../normalize/kr_ticker_cache";
 import { extractKrTickerCandidates, extractTickerCandidates } from "../normalize/symbol_map";
 import { fetchText } from "./http";
 import { parseRssItems } from "./news";
+import { buildKrMarketMetadata } from "./kr_market_meta";
 
 function googleNewsRssUrl(query: string): string {
   return `https://news.google.com/rss/search?q=${encodeURIComponent(query + " when:1d")}&hl=ko&gl=KR&ceid=KR:ko`;
@@ -46,7 +47,11 @@ function buildSignalsFromItems(sourceDetail: string, items: Array<{ title: strin
       publishedAt: item.pubDate ? new Date(item.pubDate).toISOString() : null,
       collectedAt: nowIso(),
       engagement: null,
-      rawPayload: { source_detail: sourceDetail, market_scope: "KR" }
+      rawPayload: buildKrMarketMetadata({
+        title: sanitizedTitle || item.title,
+        body: null,
+        base: { source_detail: sourceDetail, market_scope: "KR" }
+      })
     } satisfies SignalRaw;
   });
 }

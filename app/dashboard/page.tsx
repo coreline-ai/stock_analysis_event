@@ -85,14 +85,14 @@ export default function DashboardCockpitPage() {
     token
   );
 
-  if (loading) return <LoadingBlock label="콕핏 데이터를 불러오는 중..." />;
+  if (loading) return <LoadingBlock label="대시보드 데이터를 불러오는 중..." />;
   if (error) return <ErrorState message={error} />;
-  if (!summary) return <EmptyState title="요약 데이터 없음" description="파이프라인 실행 후 콕핏을 새로고침하세요." />;
+  if (!summary) return <EmptyState title="요약 데이터 없음" description="파이프라인 실행 후 대시보드를 새로고침하세요." />;
 
   return (
     <div className="dash-grid">
       <section className="hero">
-        <h1 className="hero-title">운영 콕핏</h1>
+        <h1 className="hero-title">운영 대시보드</h1>
         <p className="hero-subtitle">실행 상태, 판단 결과, 신호 처리량을 한눈에 확인합니다.</p>
         <div className="grid grid-3">
           <div className="card kpi">

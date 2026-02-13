@@ -9,9 +9,10 @@ import { trackEvent } from "./telemetry";
 import type { MarketScope } from "@/core/domain/types";
 
 const NAV_LINKS = [
-  { href: "/dashboard", label: "운영 콕핏" },
+  { href: "/dashboard", label: "운영 대시보드" },
   { href: "/dashboard/decisions", label: "판단 탐색" },
   { href: "/dashboard/reports", label: "리포트" },
+  { href: "/dashboard/symbol-report", label: "종목 리포트" },
   { href: "/dashboard/runs", label: "실행 이력" },
   { href: "/dashboard/signals", label: "신호 탐색" },
   { href: "/dashboard/settings", label: "설정" }

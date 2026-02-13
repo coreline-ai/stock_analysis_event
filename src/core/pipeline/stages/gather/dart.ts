@@ -5,6 +5,7 @@ import { extractKrTickerCandidates } from "../normalize/symbol_map";
 import { extractKrTickerCandidatesByName } from "../normalize/kr_ticker_cache";
 import { fetchJson, fetchText } from "./http";
 import { parseRssItems } from "./news";
+import { buildKrMarketMetadata } from "./kr_market_meta";
 
 interface DartDisclosure {
   rcept_no?: string;
@@ -61,12 +62,16 @@ function mapDisclosuresToSignals(items: DartDisclosure[], limit: number): Signal
       publishedAt: isoFromYyyymmdd(item.rcept_dt),
       collectedAt: nowIso(),
       engagement: null,
-      rawPayload: {
-        source_detail: "dart_openapi",
-        market_scope: "KR",
-        corp_name: corpName || null,
-        report_name: reportName || null
-      }
+      rawPayload: buildKrMarketMetadata({
+        title: `${corpName} ${reportName}`.trim(),
+        body: null,
+        base: {
+          source_detail: "dart_openapi",
+          market_scope: "KR",
+          corp_name: corpName || null,
+          report_name: reportName || null
+        }
+      })
     } satisfies SignalRaw;
   });
 }
@@ -92,10 +97,14 @@ async function gatherDartNewsFallback(limit: number): Promise<SignalRaw[]> {
       publishedAt: item.pubDate ? new Date(item.pubDate).toISOString() : null,
       collectedAt: nowIso(),
       engagement: null,
-      rawPayload: {
-        source_detail: "dart_google_news_fallback",
-        market_scope: "KR"
-      }
+      rawPayload: buildKrMarketMetadata({
+        title: item.title,
+        body: null,
+        base: {
+          source_detail: "dart_google_news_fallback",
+          market_scope: "KR"
+        }
+      })
     } satisfies SignalRaw;
   });
 }

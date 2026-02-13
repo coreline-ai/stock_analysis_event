@@ -2,11 +2,12 @@ import assert from "node:assert";
 import { detectSentiment } from "@/core/pipeline/stages/score/sentiment";
 import { detectSentimentKr } from "@/core/pipeline/stages/score/sentiment_kr";
 import { calculateFreshness } from "@/core/pipeline/stages/score/freshness";
-import { extractTickerCandidates, normalizeSymbol } from "@/core/pipeline/stages/normalize/symbol_map";
+import { extractTickerCandidates, normalizeKrSymbol, normalizeSymbol } from "@/core/pipeline/stages/normalize/symbol_map";
 import { extractKrTickerCandidatesByName } from "@/core/pipeline/stages/normalize/kr_ticker_cache";
 import { parseRssItems } from "@/core/pipeline/stages/gather/news";
 import { parseAtom } from "@/core/pipeline/stages/gather/sec";
 import { buildGatherTasks, runGather } from "@/core/pipeline/stages/gather";
+import { buildKrMarketMetadata } from "@/core/pipeline/stages/gather/kr_market_meta";
 import { scoreSignals } from "@/core/pipeline/stages/score";
 import { analyzeKrQuantSignal } from "@/core/pipeline/stages/score/quant_kr";
 import { buildDecisionPrompt } from "@/core/pipeline/stages/decide/prompts";
@@ -50,6 +51,29 @@ function testKrTickerNameExtract() {
   const symbols = extractKrTickerCandidatesByName("삼성전자와 SK하이닉스 동반 강세");
   assert.ok(symbols.includes("005930"));
   assert.ok(symbols.includes("000660"));
+}
+
+function testKrSymbolNormalizationCompat() {
+  assert.equal(normalizeKrSymbol("005930"), "005930");
+  assert.equal(normalizeKrSymbol("A005930"), "005930");
+  assert.equal(normalizeKrSymbol("005930.KS"), "005930");
+  assert.equal(normalizeKrSymbol("005930.kq"), "005930");
+  assert.equal(normalizeKrSymbol("ABC"), null);
+}
+
+function testKrMarketMetaExtraction() {
+  const meta = buildKrMarketMetadata({
+    title: "외국인 순매수 120억, 기관 순매도 30억, 거래량 180%, 5일선 상회, 20일선 하회",
+    body: null,
+    base: { market_scope: "KR" }
+  });
+
+  assert.equal(meta.market_scope, "KR");
+  assert.equal(meta.volume_ratio, 1.8);
+  assert.equal(meta.price_above_ma5, 1);
+  assert.equal(meta.price_above_ma20, 0);
+  assert.ok(Number(meta.foreign_net_buy) > 0);
+  assert.ok(Number(meta.institution_net_buy) < 0);
 }
 
 function testRssParse() {
@@ -384,6 +408,8 @@ async function run() {
   testFreshness();
   testTickerExtract();
   testKrTickerNameExtract();
+  testKrSymbolNormalizationCompat();
+  testKrMarketMetaExtraction();
   testRssParse();
   testAtomParse();
   testScoring();

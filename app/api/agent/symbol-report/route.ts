@@ -17,7 +17,7 @@ const MAX_LIMIT = 200;
 function clampLimit(value: string | null, fallback = 50): number {
   const parsed = Number(value ?? fallback);
   if (!Number.isFinite(parsed)) return fallback;
-  return Math.max(1, Math.min(MAX_LIMIT, parsed));
+  return Math.max(1, Math.min(MAX_LIMIT, Math.floor(parsed)));
 }
 
 function buildSourceCounts(raw: SignalRaw[]): Record<string, number> {
@@ -34,7 +34,7 @@ function resolveScope(value: MarketScope | undefined): MarketScope {
 }
 
 function inferScopeBySymbol(symbol: string): MarketScope {
-  return /^\d{6}$/.test(symbol.trim()) ? "KR" : "US";
+  return normalizeKrSymbol(symbol) ? "KR" : "US";
 }
 
 function parseBool(value: string | null, fallback = true): boolean {
@@ -86,6 +86,22 @@ function buildSummary(decision: SymbolReport["decision"], scored: SignalScored[]
   return lines.join("\n");
 }
 
+function dedupeScoredSignals(items: SignalScored[]): SignalScored[] {
+  const seen = new Set<string>();
+  const deduped: SignalScored[] = [];
+  for (const item of items) {
+    const key = item.rawId || item.id || "";
+    if (!key) {
+      deduped.push(item);
+      continue;
+    }
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(item);
+  }
+  return deduped;
+}
+
 export async function GET(req: NextRequest) {
   try {
     assertNoForbiddenEnv();
@@ -127,14 +143,15 @@ export async function GET(req: NextRequest) {
       listScoredSignalsBySymbol(symbol, limit, scope),
       listDecisionsBySymbol(symbol, 10, scope)
     ]);
+    const dedupedScored = dedupeScoredSignals(scored);
     const decision = decisions[0] ?? null;
     const report: SymbolReport = {
       symbol,
       marketScope: resolveScope(scope),
       generatedAt: new Date().toISOString(),
-      summaryMarkdown: buildSummary(decision, scored, raw),
+      summaryMarkdown: buildSummary(decision, dedupedScored, raw),
       decision,
-      scoredSignals: scored,
+      scoredSignals: dedupedScored,
       rawSignals: raw,
       sourceCounts: buildSourceCounts(raw),
       onDemandRun

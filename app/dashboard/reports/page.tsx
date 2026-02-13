@@ -2,14 +2,12 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import type { DailyReport, SymbolReport } from "@/core/domain/types";
+import type { DailyReport } from "@/core/domain/types";
 import { apiRequest } from "../_components/api_client";
 import { useDashboardContext } from "../_components/dashboard_context";
 import { marketScopeLabel, verdictLabel } from "../_components/labels";
-import { formatKrSymbol, useKrSymbolNameMap } from "../_components/kr_symbol_names";
 import { trackEvent } from "../_components/telemetry";
 import { EmptyState, ErrorState, LoadingBlock } from "../_components/ui_primitives";
-import { useAllSymbolSuggestions } from "../_components/symbol_autocomplete";
 
 function asItems(payload: unknown): DailyReport[] {
   if (Array.isArray(payload)) return payload as DailyReport[];
@@ -23,7 +21,7 @@ export default function ReportsPage() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { token, llmProvider, refreshKey, setAuthRequired } = useDashboardContext();
+  const { token, refreshKey, setAuthRequired } = useDashboardContext();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [items, setItems] = useState<DailyReport[]>([]);
@@ -32,10 +30,6 @@ export default function ReportsPage() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [visibleCount, setVisibleCount] = useState(40);
-  const [symbolQuery, setSymbolQuery] = useState("");
-  const [symbolReport, setSymbolReport] = useState<SymbolReport | null>(null);
-  const [symbolLoading, setSymbolLoading] = useState(false);
-  const [symbolError, setSymbolError] = useState("");
   const qsScope = searchParams.get("scope") ?? "";
 
   useEffect(() => {
@@ -79,7 +73,7 @@ export default function ReportsPage() {
       setItems(list);
       if (list.length > 0) setSelectedId(list[0].id ?? "");
     }
-    load();
+    void load();
     return () => {
       cancelled = true;
     };
@@ -92,9 +86,12 @@ export default function ReportsPage() {
       return true;
     });
   }, [items, dateFrom, dateTo]);
-  const visibleReports = filtered.slice(0, visibleCount);
 
-  const selected = useMemo(() => visibleReports.find((r) => r.id === selectedId) ?? filtered.find((r) => r.id === selectedId) ?? filtered[0] ?? null, [visibleReports, filtered, selectedId]);
+  const visibleReports = filtered.slice(0, visibleCount);
+  const selected = useMemo(
+    () => visibleReports.find((r) => r.id === selectedId) ?? filtered.find((r) => r.id === selectedId) ?? filtered[0] ?? null,
+    [visibleReports, filtered, selectedId]
+  );
 
   useEffect(() => {
     setVisibleCount(40);
@@ -104,38 +101,6 @@ export default function ReportsPage() {
       meta: { scope, dateFrom, dateTo }
     });
   }, [scope, dateFrom, dateTo, refreshKey]);
-
-  const krSymbolNames = useKrSymbolNameMap(
-    [symbolReport?.symbol ?? "", ...(symbolReport?.scoredSignals ?? []).map((s) => s.symbol)],
-    token
-  );
-
-  const { items: symbolSuggestions, loading: suggestionLoading } = useAllSymbolSuggestions({
-    query: symbolQuery,
-    scope,
-    token,
-    enabled: true
-  });
-
-  async function runSymbolReport(symbol: string) {
-    const trimmed = symbol.trim();
-    if (!trimmed) return;
-    setSymbolLoading(true);
-    setSymbolError("");
-    const scopeQuery = scope !== "ALL" ? `&scope=${scope}` : "";
-    const res = await apiRequest<SymbolReport>(
-      `/api/agent/symbol-report?symbol=${encodeURIComponent(trimmed)}${scopeQuery}&refresh=1&llmProvider=${encodeURIComponent(llmProvider)}`,
-      { token }
-    );
-    setSymbolLoading(false);
-    if (!res.ok) {
-      if (res.status === 401) setAuthRequired(true);
-      setSymbolError(res.error);
-      setSymbolReport(null);
-      return;
-    }
-    setSymbolReport(res.data);
-  }
 
   function downloadReport(mode: "json" | "markdown") {
     if (!selected) return;
@@ -158,80 +123,6 @@ export default function ReportsPage() {
 
   return (
     <div className="grid grid-2">
-      <section className="card">
-        <div className="symbol-report-header">
-          <h3>개별 종목 실시간 리포트</h3>
-          <div className="symbol-search-help">심볼 또는 한글 종목명을 입력하세요.</div>
-        </div>
-        <div className="symbol-search-stack" style={{ marginTop: 10 }}>
-          <div className="symbol-search-wrap">
-            <input
-              value={symbolQuery}
-              onChange={(e) => setSymbolQuery(e.target.value)}
-              placeholder={scope === "KR" ? "종목명/코드 검색" : "티커 검색"}
-            />
-            {symbolSuggestions.length > 0 || suggestionLoading ? (
-              <div className="autocomplete-list" role="listbox" aria-label="종목 자동완성">
-                {symbolSuggestions.map((item) => (
-                  <button
-                    key={`${item.marketScope}:${item.symbol}`}
-                    type="button"
-                    className="autocomplete-item"
-                    onClick={() => {
-                      setSymbolQuery(item.symbol);
-                      void runSymbolReport(item.symbol);
-                    }}
-                  >
-                    {item.display}
-                  </button>
-                ))}
-                {suggestionLoading ? <div className="autocomplete-item muted">검색 중...</div> : null}
-              </div>
-            ) : null}
-          </div>
-          <button type="button" onClick={() => void runSymbolReport(symbolQuery)} disabled={symbolLoading}>
-            {symbolLoading ? "생성 중..." : "종목 리포트 생성"}
-          </button>
-          <div className="symbol-search-quick">
-            <span className="signal-chip">예시</span>
-            <button type="button" className="signal-chip" onClick={() => void runSymbolReport("005930")}>
-              삼성전자
-            </button>
-            <button type="button" className="signal-chip" onClick={() => void runSymbolReport("AAPL")}>
-              AAPL
-            </button>
-          </div>
-        </div>
-        {symbolError ? <p style={{ marginTop: 10 }}>{symbolError}</p> : null}
-        {!symbolReport ? null : (
-          <div style={{ marginTop: 14 }}>
-            <p>
-              <strong>종목:</strong> {formatKrSymbol(symbolReport.symbol, krSymbolNames)}
-            </p>
-            <p>
-              <strong>시장:</strong> {marketScopeLabel(symbolReport.marketScope)}
-            </p>
-            <p>
-              <strong>생성 시각:</strong> {new Date(symbolReport.generatedAt).toLocaleString()}
-            </p>
-            {symbolReport.onDemandRun ? (
-              <p>
-                <strong>온디맨드 실행:</strong>{" "}
-                {`${symbolReport.onDemandRun.status} (raw=${symbolReport.onDemandRun.rawCount}, scored=${symbolReport.onDemandRun.scoredCount}, decided=${symbolReport.onDemandRun.decidedCount})`}
-              </p>
-            ) : null}
-            <div className="source-grid">
-              {Object.entries(symbolReport.sourceCounts).map(([key, value]) => (
-                <div key={key} className="source-card">
-                  <strong>{key}</strong>
-                  <div>{value}건</div>
-                </div>
-              ))}
-            </div>
-            <div className="markdown-box" style={{ marginTop: 12 }}>{symbolReport.summaryMarkdown}</div>
-          </div>
-        )}
-      </section>
       <section className="card">
         <div className="list-item-head">
           <h3>리포트 목록 ({filtered.length})</h3>
@@ -295,16 +186,38 @@ export default function ReportsPage() {
                 </button>
               </div>
             </div>
-            <p><strong>상위 {verdictLabel("BUY_NOW")}:</strong> {selected.topBuyNow.join(", ") || "-"}</p>
-            <p><strong>상위 {verdictLabel("WATCH")}:</strong> {selected.topWatch.join(", ") || "-"}</p>
-            <p><strong>시장:</strong> {marketScopeLabel(selected.marketScope)}</p>
-            <p><strong>테마:</strong></p>
+            <p>
+              <strong>상위 {verdictLabel("BUY_NOW")}:</strong> {selected.topBuyNow.join(", ") || "-"}
+            </p>
+            <p>
+              <strong>상위 {verdictLabel("WATCH")}:</strong> {selected.topWatch.join(", ") || "-"}
+            </p>
+            <p>
+              <strong>시장:</strong> {marketScopeLabel(selected.marketScope)}
+            </p>
+            <p>
+              <strong>테마:</strong>
+            </p>
             <div className="tag-row">
-              {selected.themes.length === 0 ? <span className="tag">-</span> : selected.themes.map((t) => <span className="tag" key={t}>{t}</span>)}
+              {selected.themes.length === 0 ? (
+                <span className="tag">-</span>
+              ) : (
+                selected.themes.map((t) => <span className="tag" key={t}>{t}</span>)
+              )}
             </div>
-            <p><strong>리스크:</strong></p>
+            <p>
+              <strong>리스크:</strong>
+            </p>
             <div className="tag-row">
-              {selected.risks.length === 0 ? <span className="tag">-</span> : selected.risks.map((t) => <span className="tag tag-risk" key={t}>{t}</span>)}
+              {selected.risks.length === 0 ? (
+                <span className="tag">-</span>
+              ) : (
+                selected.risks.map((t) => (
+                  <span className="tag tag-risk" key={t}>
+                    {t}
+                  </span>
+                ))
+              )}
             </div>
             <div className="markdown-box">{selected.summaryMarkdown}</div>
           </>

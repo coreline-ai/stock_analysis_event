@@ -2,6 +2,11 @@ import { buildRiskTags, clamp01 } from "./utils";
 
 interface RiskHeatmapPanelProps {
   contextRiskScore?: number;
+  socialScore?: number;
+  eventScore?: number;
+  volumeScore?: number;
+  flowScore?: number;
+  technicalScore?: number;
   volumeGuardPassed?: boolean;
   flowGuardPassed?: boolean;
   technicalGuardPassed?: boolean;
@@ -14,16 +19,27 @@ function riskLevel(score: number): "낮음" | "중간" | "높음" {
 }
 
 export function RiskHeatmapPanel(props: RiskHeatmapPanelProps) {
-  // Calculate a composite risk score for display
-  // Base: Context Risk (active dangers)
-  // Penalty: Failed hard filters (passive dangers/missing requirements)
-  let displayRisk = props.contextRiskScore ?? 0;
-  if (props.volumeGuardPassed === false) displayRisk += 0.15;
-  if (props.flowGuardPassed === false) displayRisk += 0.15;
-  if (props.technicalGuardPassed === false) displayRisk += 0.15;
+  // Composite risk = context risk + score deficits + guard failures.
+  // This avoids over-clustering around a single value when guard states are similar.
+  const contextRisk = clamp01(props.contextRiskScore ?? 0);
+  const socialScore = clamp01(props.socialScore ?? 0);
+  const eventScore = clamp01(props.eventScore ?? 0);
+  const volumeScore = clamp01(props.volumeScore ?? 0);
+  const flowScore = clamp01(props.flowScore ?? 0);
+  const technicalScore = clamp01(props.technicalScore ?? 0);
+
+  let displayRisk = contextRisk * 0.45;
+  displayRisk += (1 - volumeScore) * 0.2;
+  displayRisk += (1 - flowScore) * 0.15;
+  displayRisk += (1 - technicalScore) * 0.1;
+  displayRisk += (1 - eventScore) * 0.05;
+  displayRisk += (1 - socialScore) * 0.05;
+
+  if (props.volumeGuardPassed === false) displayRisk += 0.03;
+  if (props.flowGuardPassed === false) displayRisk += 0.03;
+  if (props.technicalGuardPassed === false) displayRisk += 0.03;
 
   const risk = clamp01(displayRisk);
-  const contextRisk = props.contextRiskScore ?? 0;
   const level = riskLevel(risk);
   const tags = buildRiskTags(props);
 

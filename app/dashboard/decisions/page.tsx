@@ -24,6 +24,43 @@ function asItems(payload: unknown): Decision[] {
   return [];
 }
 
+interface DecisionRiskSnapshot {
+  contextRiskScore: number;
+  socialScore: number;
+  eventScore: number;
+  volumeScore: number;
+  flowScore: number;
+  technicalScore: number;
+  volumeGuardPassed: boolean;
+  flowGuardPassed: boolean;
+  technicalGuardPassed: boolean;
+}
+
+function avg(values: number[]): number {
+  if (values.length === 0) return 0;
+  return values.reduce((acc, value) => acc + value, 0) / values.length;
+}
+
+function passRatio(items: SignalScored[], key: keyof SignalScored): number {
+  if (items.length === 0) return 1;
+  const passed = items.filter((item) => item[key] === true).length;
+  return passed / items.length;
+}
+
+function summarizeDecisionRisk(scoredGroup: SignalScored[]): DecisionRiskSnapshot {
+  return {
+    contextRiskScore: avg(scoredGroup.map((item) => item.contextRiskScore ?? 0)),
+    socialScore: avg(scoredGroup.map((item) => item.socialScore ?? 0)),
+    eventScore: avg(scoredGroup.map((item) => item.eventScore ?? 0)),
+    volumeScore: avg(scoredGroup.map((item) => item.volumeScore ?? 0)),
+    flowScore: avg(scoredGroup.map((item) => item.flowScore ?? 0)),
+    technicalScore: avg(scoredGroup.map((item) => item.technicalScore ?? 0)),
+    volumeGuardPassed: passRatio(scoredGroup, "volumeGuardPassed") >= 0.5,
+    flowGuardPassed: passRatio(scoredGroup, "flowGuardPassed") >= 0.5,
+    technicalGuardPassed: passRatio(scoredGroup, "technicalGuardPassed") >= 0.5
+  };
+}
+
 export default function DecisionsPage() {
   const router = useRouter();
   const pathname = usePathname();
@@ -151,13 +188,13 @@ export default function DecisionsPage() {
     }
     return map;
   }, [scoredItems]);
-  const linkedScored = useMemo(() => {
+  const decisionRisk = useMemo(() => {
     if (!selected) return null;
-    for (const sourceId of selected.sourcesUsed) {
-      const scored = scoredById.get(sourceId);
-      if (scored) return scored;
-    }
-    return null;
+    const scoredGroup = selected.sourcesUsed
+      .map((sourceId) => scoredById.get(sourceId))
+      .filter((item): item is SignalScored => Boolean(item));
+    if (scoredGroup.length === 0) return null;
+    return summarizeDecisionRisk(scoredGroup);
   }, [selected, scoredById]);
 
   if (loading) return <LoadingBlock label="판단 데이터를 불러오는 중..." />;
@@ -286,12 +323,17 @@ export default function DecisionsPage() {
               <p><strong>핵심 근거:</strong> {selected.thesisSummary}</p>
               <p><strong>진입 트리거:</strong> {selected.entryTrigger}</p>
               <EntryTriggerTracker symbol={selected.symbol} entryTrigger={selected.entryTrigger} token={token} />
-              {linkedScored ? (
+              {decisionRisk ? (
                 <RiskHeatmapPanel
-                  contextRiskScore={linkedScored.contextRiskScore}
-                  volumeGuardPassed={linkedScored.volumeGuardPassed}
-                  flowGuardPassed={linkedScored.flowGuardPassed}
-                  technicalGuardPassed={linkedScored.technicalGuardPassed}
+                  contextRiskScore={decisionRisk.contextRiskScore}
+                  socialScore={decisionRisk.socialScore}
+                  eventScore={decisionRisk.eventScore}
+                  volumeScore={decisionRisk.volumeScore}
+                  flowScore={decisionRisk.flowScore}
+                  technicalScore={decisionRisk.technicalScore}
+                  volumeGuardPassed={decisionRisk.volumeGuardPassed}
+                  flowGuardPassed={decisionRisk.flowGuardPassed}
+                  technicalGuardPassed={decisionRisk.technicalGuardPassed}
                 />
               ) : null}
               <p><strong>무효화 조건:</strong> {selected.invalidation}</p>

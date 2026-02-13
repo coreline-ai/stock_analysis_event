@@ -4,6 +4,7 @@ import { extractKrTickerCandidates, extractTickerCandidates } from "../normalize
 import { extractKrTickerCandidatesByName } from "../normalize/kr_ticker_cache";
 import { fetchText } from "./http";
 import { parseRssItems } from "./news";
+import { buildKrMarketMetadata } from "./kr_market_meta";
 
 function googleNewsRssUrl(query: string): string {
   return `https://news.google.com/rss/search?q=${encodeURIComponent(query + " when:1d")}&hl=ko&gl=KR&ceid=KR:ko`;
@@ -50,11 +51,15 @@ export async function gatherKrGlobalContext(limit = 20): Promise<SignalRaw[]> {
           publishedAt: rss.pubDate ? new Date(rss.pubDate).toISOString() : null,
           collectedAt: nowIso(),
           engagement: null,
-          rawPayload: {
-            source_detail: item.sourceDetail,
-            market_scope: "KR",
-            query: item.query
-          }
+          rawPayload: buildKrMarketMetadata({
+            title: rss.title,
+            body: null,
+            base: {
+              source_detail: item.sourceDetail,
+              market_scope: "KR",
+              query: item.query
+            }
+          })
         } satisfies SignalRaw
       );
     }
