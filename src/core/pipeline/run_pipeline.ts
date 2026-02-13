@@ -70,7 +70,9 @@ export async function runPipeline(opts: RunPipelineOptions): Promise<RunPipeline
   const scoreMaxPerSymbol = Math.max(1, getNumberEnv("SCORE_MAX_PER_SYMBOL", 6));
   const symbolRunMaxSeconds = getNumberEnv("SYMBOL_RUN_MAX_SECONDS", 90);
   const effectiveRunMaxSeconds = targetSymbol ? Math.max(limits.runMaxSeconds, symbolRunMaxSeconds) : limits.runMaxSeconds;
+  const persistReserveMs = Math.max(1000, getNumberEnv("PIPELINE_PERSIST_RESERVE_MS", 3500));
   const hardDeadlineMs = Date.now() + effectiveRunMaxSeconds * 1000;
+  const decideDeadlineMs = hardDeadlineMs - persistReserveMs;
 
   const startedAt = nowIso();
   const runId = sha256(`${startedAt}-${Math.random().toString(36).slice(2)}`);
@@ -83,7 +85,8 @@ export async function runPipeline(opts: RunPipelineOptions): Promise<RunPipeline
   let rawSignals: SignalRaw[] = [];
   let scoredSignals: SignalScored[] = [];
   let scoredWithIds: SignalScored[] = [];
-  let decisions: Decision[] = [];
+  let generatedDecisions: Decision[] = [];
+  let persistedDecisions: Decision[] = [];
   let report: DailyReport | null = null;
   const stageTimings: Record<string, number> = {};
   const assertWithinDeadline = () => {
@@ -258,24 +261,25 @@ export async function runPipeline(opts: RunPipelineOptions): Promise<RunPipeline
       : limits;
     assertWithinDeadline();
     const llmProvider = opts.adapters?.llmProvider ?? createLLMProviderFromEnv(opts.llmProviderName);
-    decisions = await decideSignals(scoredWithIds, llmProvider, hardDeadlineMs, { marketScope, limits: effectiveLimits });
+    generatedDecisions = await decideSignals(scoredWithIds, llmProvider, decideDeadlineMs, { marketScope, limits: effectiveLimits });
     stageTimings.decide_ms = Date.now() - decideStart;
+    stageTimings.persist_reserve_ms = persistReserveMs;
     assertWithinDeadline();
 
     const decisionInsertStart = Date.now();
     const savedDecisions: Decision[] = [];
-    for (const d of decisions) {
+    for (const d of generatedDecisions) {
       assertWithinDeadline();
       const payload = { ...d, runRef: runId, marketScope };
       const id = await insertDecision(payload);
       savedDecisions.push({ ...payload, id });
     }
-    decisions = savedDecisions;
+    persistedDecisions = savedDecisions;
     stageTimings.decisions_insert_ms = Date.now() - decisionInsertStart;
 
     const reportStart = Date.now();
     assertWithinDeadline();
-    report = generateReport(decisions, scoredWithIds, marketScope);
+    report = generateReport(persistedDecisions, scoredWithIds, marketScope);
     stageTimings.report_ms = Date.now() - reportStart;
     if (report) {
       assertWithinDeadline();
@@ -316,9 +320,9 @@ export async function runPipeline(opts: RunPipelineOptions): Promise<RunPipeline
     status,
     gatheredCounts,
     scoredCount: scoredSignals.length,
-    decidedCount: decisions.length,
-    llmCalls: decisions.length,
-    llmTokensEstimated: decisions.length * limits.llmMaxTokensPerCall,
+    decidedCount: persistedDecisions.length,
+    llmCalls: generatedDecisions.length,
+    llmTokensEstimated: generatedDecisions.length * limits.llmMaxTokensPerCall,
     stageTimingsMs: stageTimings,
     errorSummary,
     createdAt: startedAt
@@ -330,7 +334,7 @@ export async function runPipeline(opts: RunPipelineOptions): Promise<RunPipeline
     status,
     rawCount: rawSignals.length,
     scoredCount: scoredSignals.length,
-    decidedCount: decisions.length
+    decidedCount: persistedDecisions.length
   });
 
   return {
@@ -341,7 +345,7 @@ export async function runPipeline(opts: RunPipelineOptions): Promise<RunPipeline
     errorSummary,
     rawCount: rawSignals.length,
     scoredCount: scoredSignals.length,
-    decidedCount: decisions.length,
+    decidedCount: persistedDecisions.length,
     reportId: report?.id
   };
 }

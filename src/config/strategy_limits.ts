@@ -48,6 +48,10 @@ export function resolveStrategyLimits(strategyKey: StrategyKey, base: PipelineLi
     return withBase(fallback, envOverride("ALL", fallback));
   }
 
-  const fallback = withBase(base, {});
+  const fallback = withBase(base, {
+    // US 기본 실행은 gather+LLM 지연 변동폭이 커서 25초 timebox로는
+    // decide/persist 전에 partial 종료가 자주 발생한다.
+    runMaxSeconds: Math.max(base.runMaxSeconds, 60)
+  });
   return withBase(fallback, envOverride("US", fallback));
 }

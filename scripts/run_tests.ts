@@ -15,6 +15,8 @@ import { buildDecisionPrompt } from "@/core/pipeline/stages/decide/prompts";
 import { DecisionOutputSchema } from "@/core/pipeline/stages/decide/schema";
 import { decideSignals } from "@/core/pipeline/stages/decide";
 import { parseMarketScope, parseStrategyKey } from "@/core/pipeline/strategy_keys";
+import { resolveStrategyLimits } from "@/config/strategy_limits";
+import { LIMITS } from "@/config/limits";
 import { buildDailyReport } from "@/core/pipeline/stages/report/daily_report";
 import type { LLMProvider } from "@/adapters/llm/provider";
 import { acquireLock, releaseLock } from "@/adapters/lock/db_lock";
@@ -187,6 +189,11 @@ function testTriggerPayloadValidation() {
   assert.equal(parseStrategyKey(undefined, "US"), "us_default");
   assert.equal(parseStrategyKey("all_default", "US"), null);
   assert.equal(parseStrategyKey("kr_default", "US"), null);
+}
+
+function testUsStrategyRunTimeFloor() {
+  const limits = resolveStrategyLimits("us_default", LIMITS);
+  assert.ok(limits.runMaxSeconds >= 60);
 }
 
 function testGatherScopeTasks() {
@@ -430,6 +437,7 @@ async function run() {
   testKrHybridQuantAnalysis();
   testKrHybridVolumeGuardFail();
   testTriggerPayloadValidation();
+  testUsStrategyRunTimeFloor();
   testGatherScopeTasks();
   await testDecideRetryAndDeadline();
   await testDecideHardFilterDowngrade();
