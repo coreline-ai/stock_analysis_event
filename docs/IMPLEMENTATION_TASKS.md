@@ -56,7 +56,7 @@
 
 ## WS-D 락/러너/중복 실행 (소유: `src/adapters/lock`, `app/api/cron`)
 
-- [x] Redis 락 어댑터 구현 (Upstash 우선)
+- [x] DB 락 어댑터 구현 (pipeline_locks 테이블 기반)
 - [x] `MIN_SECONDS_BETWEEN_RUNS` 실행 간격 가드 구현
 - [x] `/api/cron/run` 구현 및 락 획득 시 실행
 - [x] 실패/중단 시 `agent_runs` 기록
@@ -781,10 +781,10 @@
 
 ### WS-Z1 락 강제화/원자성 보강
 
-- [x] Upstash 설정 미존재 시 무락(no-lock) 진행 제거, 즉시 실패 처리
+- [x] 락 저장소 미설정 시 무락(no-lock) 진행 제거, 즉시 실패 처리
 - [x] 락 해제를 `/eval` compare-and-delete(토큰 일치 시에만 삭제)로 원자화
 - [x] 락 해제 실패가 파이프라인 본 실행 결과를 덮어쓰지 않도록 방어 처리
-- [x] Upstash 실환경 E2E 스모크 스크립트 추가 (`scripts/lock_e2e_smoke.ts`)
+- [x] DB 락 E2E 스모크 스크립트 추가 (`scripts/lock_e2e_smoke.ts`)
 - [x] E2E 실행 커맨드 추가 (`npm run test:lock:e2e`)
 - [x] 락 문서 갱신 (`docs/LOCKING.md`)
 
@@ -810,7 +810,7 @@
 검증 로그 (2026-02-13):
 - `npm test` 통과
 - `npx tsc --noEmit` 통과
-- `npm run test:lock:e2e` 실행 시 Upstash env 미설정 가드(`Missing required env: UPSTASH_REDIS_REST_URL`) 확인
+- `npm run test:lock:e2e` 실행 시 DB env 미설정 가드(`Missing required env: DATABASE_URL`) 확인
 
 ### WS-Z5 cron 기능 제거 + 수동 트리거 전용 전환 계획
 

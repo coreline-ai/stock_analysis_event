@@ -15,7 +15,7 @@ import { decideSignals } from "@/core/pipeline/stages/decide";
 import { parseMarketScope, parseStrategyKey } from "@/core/pipeline/strategy_keys";
 import { buildDailyReport } from "@/core/pipeline/stages/report/daily_report";
 import type { LLMProvider } from "@/adapters/llm/provider";
-import { acquireLock, releaseLock } from "@/adapters/lock/redis_lock";
+import { acquireLock, releaseLock } from "@/adapters/lock/db_lock";
 import type { SignalScored } from "@/core/domain/types";
 
 function testSentiment() {
@@ -316,18 +316,22 @@ async function testDecideHardFilterDowngrade() {
   assert.ok(decisions[0]?.riskNotes.some((note) => note.includes("하드 필터")));
 }
 
-async function testLockFallback() {
-  process.env.LOCK_MODE = "memory";
-  const handle1 = await acquireLock("test", 50);
+async function testLockAcquireRelease() {
+  const key = `test-lock-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const handle1 = await acquireLock(key, 50);
   assert.ok(handle1);
-  const handle2 = await acquireLock("test", 50);
+  const handle2 = await acquireLock(key, 50);
   assert.equal(handle2, null);
 
+  await releaseLock({ key, token: `stale-${Date.now()}` });
+  const handleAfterStaleRelease = await acquireLock(key, 50);
+  assert.equal(handleAfterStaleRelease, null);
+
+  await releaseLock(handle1!);
   await new Promise((r) => setTimeout(r, 60));
-  const handle3 = await acquireLock("test", 50);
+  const handle3 = await acquireLock(key, 50);
   assert.ok(handle3);
   await releaseLock(handle3!);
-  delete process.env.LOCK_MODE;
 }
 
 function testDailyReportBuild() {
@@ -392,7 +396,7 @@ async function run() {
   await testDecideRetryAndDeadline();
   await testDecideHardFilterDowngrade();
   await testKrMissingDartKeyGracefulSkip();
-  await testLockFallback();
+  await testLockAcquireRelease();
   testDailyReportBuild();
 
   console.log("All tests passed (non-DB).");

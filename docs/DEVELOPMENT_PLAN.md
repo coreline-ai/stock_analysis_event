@@ -88,13 +88,12 @@
 
 ---
 
-### PR-004: Redis(Upstash 등) 연결 + 분산 락 구현
+### PR-004: DB 기반 분산 락 구현
 목표:
 - 중복 실행 방지 기반 마련
 
 작업:
-- Redis REST 클라이언트 연결
-- 락 유틸 구현 (key, ttl, acquire, release)
+- DB 락 테이블(`pipeline_locks`) 기반 락 유틸 구현 (key, ttl, acquire, release)
 - 락 획득 실패 시 graceful exit
 
 완료 기준(DoD):
@@ -294,7 +293,7 @@
 - DATABASE_URL
 - LLM_API_KEY (공급자에 맞는 키)
 - DEEPSTOCK_API_TOKEN
-- REDIS_URL / REDIS_TOKEN (또는 Upstash 주입 값)
+- (별도 락 인프라 불필요: DB 락 사용)
 
 금지(존재하면 실패):
 - 브로커/주문 관련 키/시크릿
@@ -340,6 +339,6 @@ MVP는 다음이 완료되면 달성으로 본다:
 ## 7. 다음 액션
 
 - PR-001부터 순서대로 진행
-- PR-003(DB)와 PR-004(Redis)는 병렬 가능
+- PR-003(DB)와 PR-004(락 유틸)는 병렬 가능
 - PR-006~PR-010은 파이프라인 구현 단계로 집중
 - PR-011에서 수동 트리거 경로 완성 후 UI로 이동

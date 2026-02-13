@@ -97,7 +97,7 @@
 - 락 획득 실패 시 즉시 종료
 
 #### 중복 실행 방지 전략
-- 분산 락 사용 (Redis 또는 DB 기반)
+- 분산 락 사용 (DB lock table 기반)
 - 락은 TTL 기반 자동 해제 방식
 
 ---
@@ -132,7 +132,7 @@
 
 #### 포함 요소
 - Database Repository
-- Redis Lock Adapter
+- DB Lock Adapter
 - LLM Provider Adapter
 - Notification Adapter (선택)
 
@@ -285,4 +285,3 @@
 - 기술 구조는 플랫폼 독립 Core + 실행 환경 Adapter 구조를 따른다
 - 매매 실행은 기술적으로 차단된다
 - 본 TRD는 이후 개발 계획의 기준점이다
-

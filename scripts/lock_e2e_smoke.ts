@@ -1,8 +1,6 @@
 import assert from "node:assert";
-import { acquireLock, releaseLock } from "@/adapters/lock/redis_lock";
-
-const COMPARE_AND_DELETE_LUA =
-  "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end";
+import { acquireLock, releaseLock } from "@/adapters/lock/db_lock";
+import { query } from "@/adapters/db/client";
 
 function requireEnv(key: string): string {
   const value = process.env[key];
@@ -16,89 +14,83 @@ async function sleep(ms: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function upstashJson<T>(path: string): Promise<T> {
-  const url = requireEnv("UPSTASH_REDIS_REST_URL");
-  const token = requireEnv("UPSTASH_REDIS_REST_TOKEN");
-  const res = await fetch(`${url}${path}`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}` }
-  });
-  if (!res.ok) {
-    throw new Error(`upstash_http_${res.status}: ${path}`);
-  }
-  return (await res.json()) as T;
-}
-
-async function assertEvalPathWorks(key: string): Promise<void> {
-  const goodToken = `eval-good-${Date.now()}`;
-  const staleToken = `eval-stale-${Date.now()}`;
-
-  await upstashJson<{ result: string }>("/set/" + encodeURIComponent(key) + "?value=" + encodeURIComponent(goodToken));
-  const staleEval = await upstashJson<{ result: number }>(
-    `/eval/${encodeURIComponent(COMPARE_AND_DELETE_LUA)}/1/${encodeURIComponent(key)}/${encodeURIComponent(staleToken)}`
-  );
-  assert.equal(staleEval.result, 0, "eval compare-and-delete with stale token must return 0");
-
-  const getAfterStale = await upstashJson<{ result: string | null }>("/get/" + encodeURIComponent(key));
-  assert.equal(getAfterStale.result, goodToken, "eval stale token must not delete lock key");
-
-  const validEval = await upstashJson<{ result: number }>(
-    `/eval/${encodeURIComponent(COMPARE_AND_DELETE_LUA)}/1/${encodeURIComponent(key)}/${encodeURIComponent(goodToken)}`
-  );
-  assert.equal(validEval.result, 1, "eval compare-and-delete with valid token must return 1");
-
-  const getAfterDelete = await upstashJson<{ result: string | null }>("/get/" + encodeURIComponent(key));
-  assert.equal(getAfterDelete.result, null, "eval valid token must delete lock key");
+async function ensureLockTable(): Promise<void> {
+  await query(`
+    CREATE TABLE IF NOT EXISTS pipeline_locks (
+      lock_key TEXT PRIMARY KEY,
+      lock_token TEXT NOT NULL,
+      expires_at TIMESTAMPTZ NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
 }
 
 async function run(): Promise<void> {
-  requireEnv("UPSTASH_REDIS_REST_URL");
-  requireEnv("UPSTASH_REDIS_REST_TOKEN");
-
-  const previousLockMode = process.env.LOCK_MODE;
-  if (process.env.LOCK_MODE === "memory") {
-    delete process.env.LOCK_MODE;
-  }
+  requireEnv("DATABASE_URL");
+  await ensureLockTable();
 
   const ttlMs = 4000;
   const key = `deepstock:lock:e2e:${Date.now()}:${Math.random().toString(36).slice(2)}`;
-  const evalKey = `${key}:eval`;
+
+  const rowFor = async () =>
+    query<{ lock_key: string; lock_token: string }>(
+      `
+      SELECT lock_key, lock_token
+      FROM pipeline_locks
+      WHERE lock_key = $1
+      `,
+      [key]
+    );
 
   try {
-    await assertEvalPathWorks(evalKey);
-
     const handle1 = await acquireLock(key, ttlMs);
     assert.ok(handle1, "first acquire should succeed");
+
+    const row1 = await rowFor();
+    assert.equal(row1.length, 1, "lock row must exist after acquire");
+    assert.equal(row1[0]?.lock_token, handle1?.token);
 
     const handle2 = await acquireLock(key, ttlMs);
     assert.equal(handle2, null, "second acquire should fail while lock is held");
 
-    // stale token release must not delete current lock
     await releaseLock({ key, token: `stale-token-${Date.now()}` });
-    const handleAfterStaleRelease = await acquireLock(key, ttlMs);
-    assert.equal(handleAfterStaleRelease, null, "stale token release must not unlock");
+    const rowAfterStale = await rowFor();
+    assert.equal(rowAfterStale.length, 1, "stale release must not delete row");
+    assert.equal(rowAfterStale[0]?.lock_token, handle1?.token, "stale release must not change lock token");
 
     await releaseLock(handle1!);
+    const rowAfterRelease = await rowFor();
+    assert.equal(rowAfterRelease.length, 0, "valid release must delete row");
 
     const handle3 = await acquireLock(key, ttlMs);
-    assert.ok(handle3, "acquire should succeed after valid token release (/eval compare-and-delete)");
+    assert.ok(handle3, "acquire should succeed after valid token release");
     await releaseLock(handle3!);
 
-    // TTL safety: if release fails silently, this eventually unlocks
     const handle4 = await acquireLock(key, ttlMs);
-    if (!handle4) {
-      await sleep(ttlMs + 200);
-      const handleAfterTtl = await acquireLock(key, ttlMs);
-      assert.ok(handleAfterTtl, "lock should be acquirable after ttl");
-      await releaseLock(handleAfterTtl!);
-    } else {
-      await releaseLock(handle4);
-    }
+    assert.ok(handle4, "acquire should succeed for ttl validation");
 
-    console.log("Upstash lock E2E smoke passed (/eval included).");
+    let handleAfterTtl = await acquireLock(key, ttlMs);
+    const ttlDeadline = Date.now() + ttlMs + 8000;
+    while (!handleAfterTtl && Date.now() < ttlDeadline) {
+      await sleep(300);
+      handleAfterTtl = await acquireLock(key, ttlMs);
+    }
+    if (!handleAfterTtl) {
+      const debugRows = await query<{ lock_key: string; lock_token: string; expires_at: string; now: string }>(
+        `
+        SELECT lock_key, lock_token, expires_at::text, NOW()::text AS now
+        FROM pipeline_locks
+        WHERE lock_key = $1
+        `,
+        [key]
+      );
+      throw new Error(`lock should be acquirable after ttl: ${JSON.stringify(debugRows)}`);
+    }
+    await releaseLock(handleAfterTtl);
+
+    console.log("DB lock E2E smoke passed.");
   } finally {
-    if (previousLockMode === undefined) delete process.env.LOCK_MODE;
-    else process.env.LOCK_MODE = previousLockMode;
+    await query(`DELETE FROM pipeline_locks WHERE lock_key = $1`, [key]).catch(() => {});
   }
 }
 

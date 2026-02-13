@@ -73,7 +73,7 @@ deepstock-research/
           daily_reports_repo.ts
           agent_runs_repo.ts
       lock/
-        redis_lock.ts
+        db_lock.ts
       llm/
         provider.ts
         openai.ts

@@ -14,7 +14,7 @@ import { insertDecision } from "@/adapters/db/repositories/decisions_repo";
 import { upsertDailyReport } from "@/adapters/db/repositories/daily_reports_repo";
 import { insertAgentRun } from "@/adapters/db/repositories/agent_runs_repo";
 import { getLatestAgentRun } from "@/adapters/db/repositories/agent_runs_repo";
-import { acquireLock, releaseLock } from "@/adapters/lock/redis_lock";
+import { acquireLock, releaseLock } from "@/adapters/lock/db_lock";
 import { nowIso } from "@/core/utils/time";
 import { createLogger } from "@/core/utils/logger";
 import { sha256 } from "@/core/utils/hash";

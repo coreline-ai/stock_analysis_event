@@ -10,8 +10,6 @@
 - `GLM_API_KEY` (또는 `OPENAI_API_KEY`)
 
 권장:
-- `UPSTASH_REDIS_REST_URL`
-- `UPSTASH_REDIS_REST_TOKEN`
 - `DEFAULT_MARKET_SCOPE` (`US` | `KR` | `ALL`)
 - `DEFAULT_STRATEGY_KEY` (`us_default` | `kr_default` | `all_default`)
 - `PUBLIC_BASE_URL`
@@ -30,6 +28,9 @@
 - `KR_COMMUNITY_ENABLED`
 - `KR_NEWS_ENABLED`
 - `US_*`, `KR_*`, `ALL_*` 전략별 제한치 오버라이드 (`*_GATHER_MAX_ITEMS_PER_SOURCE`, `*_DECIDE_TOP_N`, `*_LLM_MAX_*`)
+
+참고:
+- 분산 락은 `DATABASE_URL`의 `pipeline_locks` 테이블을 사용한다.
 
 ## 2) 금지 환경 변수
 
@@ -50,7 +51,8 @@
 
 ## 4) DB 마이그레이션
 
-- `db/migrations/001_init.sql`과 `db/migrations/002_market_scope.sql`을 운영 DB에 적용
+- `db/migrations/*.sql` 전체를 순서대로 운영 DB에 적용
+- 분산 락용 `db/migrations/006_pipeline_locks.sql` 포함 적용
 
 ## 5) 운영 확인
 
