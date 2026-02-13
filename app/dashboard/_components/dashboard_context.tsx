@@ -13,6 +13,8 @@ export interface ToastMessage {
 interface DashboardContextValue {
   token: string;
   setToken: (value: string) => void;
+  llmProvider: "glm" | "openai" | "gemini";
+  setLlmProvider: (value: "glm" | "openai" | "gemini") => void;
   refreshKey: number;
   requestRefresh: () => void;
   authRequired: boolean;
@@ -24,11 +26,13 @@ interface DashboardContextValue {
 
 const TOKEN_KEY = "api_token";
 const LEGACY_TOKEN_KEY = "mahoraga_api_token";
+const LLM_PROVIDER_KEY = "dashboard_llm_provider";
 
 const DashboardContext = createContext<DashboardContextValue | null>(null);
 
 export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [token, setTokenState] = useState("");
+  const [llmProvider, setLlmProviderState] = useState<"glm" | "openai" | "gemini">("glm");
   const [loaded, setLoaded] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [authRequired, setAuthRequired] = useState(false);
@@ -37,6 +41,10 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const stored = window.sessionStorage.getItem(TOKEN_KEY) ?? window.sessionStorage.getItem(LEGACY_TOKEN_KEY);
     if (stored) setTokenState(stored);
+    const savedProvider = (window.sessionStorage.getItem(LLM_PROVIDER_KEY) ?? "").toLowerCase();
+    if (savedProvider === "glm" || savedProvider === "openai" || savedProvider === "gemini") {
+      setLlmProviderState(savedProvider);
+    }
     setLoaded(true);
   }, []);
 
@@ -51,8 +59,17 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     window.sessionStorage.setItem(LEGACY_TOKEN_KEY, token);
   }, [loaded, token]);
 
+  useEffect(() => {
+    if (!loaded) return;
+    window.sessionStorage.setItem(LLM_PROVIDER_KEY, llmProvider);
+  }, [loaded, llmProvider]);
+
   const setToken = useCallback((value: string) => {
     setTokenState(value.trim());
+  }, []);
+
+  const setLlmProvider = useCallback((value: "glm" | "openai" | "gemini") => {
+    setLlmProviderState(value);
   }, []);
 
   const requestRefresh = useCallback(() => {
@@ -75,6 +92,8 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     () => ({
       token,
       setToken,
+      llmProvider,
+      setLlmProvider,
       refreshKey,
       requestRefresh,
       authRequired,
@@ -83,7 +102,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       removeToast,
       toasts
     }),
-    [token, setToken, refreshKey, requestRefresh, authRequired, pushToast, removeToast, toasts]
+    [token, setToken, llmProvider, setLlmProvider, refreshKey, requestRefresh, authRequired, pushToast, removeToast, toasts]
   );
 
   return <DashboardContext.Provider value={value}>{children}</DashboardContext.Provider>;

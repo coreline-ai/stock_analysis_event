@@ -90,6 +90,25 @@ export interface DailyReport {
   createdAt: string;
 }
 
+export interface SymbolReport {
+  symbol: string;
+  marketScope: MarketScope;
+  generatedAt: string;
+  summaryMarkdown: string;
+  decision: Decision | null;
+  scoredSignals: SignalScored[];
+  rawSignals: SignalRaw[];
+  sourceCounts: Record<string, number>;
+  onDemandRun?: {
+    runId: string;
+    status: AgentRunStatus;
+    errorSummary?: string | null;
+    rawCount: number;
+    scoredCount: number;
+    decidedCount: number;
+  };
+}
+
 export type AgentRunStatus = "success" | "partial" | "failed";
 
 export interface AgentRun {

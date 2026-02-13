@@ -6,6 +6,8 @@ export type ApiErrorCode =
   | "missing_env"
   | "forbidden_env"
   | "db_error"
+  | "quote_unavailable"
+  | "symbol_not_found"
   | "unknown_error";
 
 export interface ClassifiedApiError {

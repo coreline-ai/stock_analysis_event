@@ -5,24 +5,45 @@ import { runPipeline } from "@/core/pipeline/run_pipeline";
 import { classifyApiError, jsonError, jsonOk } from "@/core/utils/http";
 import { logAuthFailure } from "@/security/log";
 import { parseMarketScope, parseStrategyKey } from "@/core/pipeline/strategy_keys";
+import type { LLMProviderName } from "@/adapters/llm/provider";
 
 interface TriggerBody {
   marketScope?: string;
   strategyKey?: string;
+  llmProvider?: string;
+}
+
+function parseLLMProvider(input: unknown): LLMProviderName | null {
+  if (typeof input !== "string") return null;
+  const normalized = input.trim().toLowerCase();
+  if (normalized === "glm" || normalized === "openai" || normalized === "gemini") {
+    return normalized as LLMProviderName;
+  }
+  return null;
 }
 
 export async function POST(req: NextRequest) {
   try {
     assertNoForbiddenEnv();
     assertApiAuth(req);
+    const queryScope = req.nextUrl.searchParams.get("scope") ?? req.nextUrl.searchParams.get("marketScope");
     const parsed = (await req.json().catch(() => ({}))) as TriggerBody;
-    const marketScope = parseMarketScope(parsed.marketScope);
+    const marketScopeFromBody =
+      typeof parsed.marketScope === "string" && parsed.marketScope.trim().length > 0
+        ? parseMarketScope(parsed.marketScope)
+        : null;
+    const marketScopeFromQuery =
+      typeof queryScope === "string" && queryScope.trim().length > 0 ? parseMarketScope(queryScope) : null;
+    const marketScope = marketScopeFromBody ?? marketScopeFromQuery;
     if (!marketScope) return jsonError("invalid_request", 400, "invalid_request");
 
     const strategyKey = parseStrategyKey(parsed.strategyKey, marketScope);
     if (!strategyKey) return jsonError("invalid_request", 400, "invalid_request");
 
-    const result = await runPipeline({ triggerType: "manual", marketScope, strategyKey });
+    const llmProvider = parseLLMProvider(parsed.llmProvider);
+    if (parsed.llmProvider && !llmProvider) return jsonError("invalid_request", 400, "invalid_request");
+
+    const result = await runPipeline({ triggerType: "manual", marketScope, strategyKey, llmProviderName: llmProvider });
     return jsonOk(result);
   } catch (err) {
     const mapped = classifyApiError(err);

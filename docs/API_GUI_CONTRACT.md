@@ -24,7 +24,7 @@ This document defines the dashboard-facing API contract for the Research-Only GU
 {
   "ok": false,
   "error": "human_readable_message",
-  "code": "unauthorized | invalid_request | missing_env | forbidden_env | db_error | unknown_error"
+  "code": "unauthorized | invalid_request | missing_env | forbidden_env | db_error | quote_unavailable | symbol_not_found | unknown_error"
 }
 ```
 
@@ -112,6 +112,81 @@ This document defines the dashboard-facing API contract for the Research-Only GU
 
 - Auth: required
 - Response: `items + meta(total, limit, offset, count)`
+
+### `GET /api/agent/symbols/resolve?codes=005930,000660`
+
+- Auth: required
+- Purpose: KR 종목코드 -> 한글 종목명 매핑
+- Response:
+```json
+{
+  "ok": true,
+  "data": {
+    "names": {
+      "005930": "삼성전자",
+      "000660": "SK하이닉스"
+    }
+  }
+}
+```
+
+### `GET /api/agent/symbols/search?q=삼성&scope=KR&limit=8`
+
+- Auth: required
+- Purpose: KR/US 심볼 자동완성
+- Cache: 5분
+- Response:
+```json
+{
+  "ok": true,
+  "data": {
+    "items": [
+      {
+        "symbol": "005930",
+        "name": "삼성전자",
+        "display": "005930 삼성전자",
+        "marketScope": "KR"
+      }
+    ]
+  }
+}
+```
+
+### `GET /api/agent/quotes?symbols=005930,AAPL`
+
+- Auth: required
+- Purpose: 엔트리 트리거 도달률 계산용 현재가 조회
+- Source:
+  - KR: `polling.finance.naver.com` (지연 시세)
+  - US: `stooq.com` (지연 시세)
+- Cache: 45초
+- Response:
+```json
+{
+  "ok": true,
+  "data": {
+    "items": [
+      {
+        "symbol": "005930",
+        "marketScope": "KR",
+        "price": 167800,
+        "currency": "KRW",
+        "asOf": "2026-02-11T20:00:00.000000+09:00",
+        "source": "naver"
+      },
+      {
+        "symbol": "AAPL",
+        "marketScope": "US",
+        "price": 273.68,
+        "currency": "USD",
+        "asOf": "2026-02-10T22:00:18Z",
+        "source": "stooq"
+      }
+    ],
+    "unavailable": []
+  }
+}
+```
 
 ### `POST /api/cron/run`
 

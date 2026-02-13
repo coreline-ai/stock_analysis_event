@@ -18,6 +18,8 @@
     "lint": "next lint",
     "test": "tsx scripts/run_tests.ts",
     "test:gui": "tsx scripts/gui_quality_check.ts",
+    "test:gui:features": "tsx scripts/gui_feature_check.ts",
+    "maintenance:rebuild-placeholders": "tsx scripts/rebuild_placeholders.ts",
     "db:up": "bash scripts/db_up.sh",
     "db:down": "bash scripts/db_down.sh",
     "db:migrate": "tsx scripts/db_migrate.ts"

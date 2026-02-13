@@ -21,7 +21,8 @@ function envOverride(prefix: string, fallback: PipelineLimits): Partial<Pipeline
     decideTopN: getNumberEnv(`${prefix}_DECIDE_TOP_N`, fallback.decideTopN),
     llmMaxSignalsPerRun: getNumberEnv(`${prefix}_LLM_MAX_SIGNALS_PER_RUN`, fallback.llmMaxSignalsPerRun),
     llmMaxCallsPerRun: getNumberEnv(`${prefix}_LLM_MAX_CALLS_PER_RUN`, fallback.llmMaxCallsPerRun),
-    llmMaxTokensPerCall: getNumberEnv(`${prefix}_LLM_MAX_TOKENS_PER_CALL`, fallback.llmMaxTokensPerCall)
+    llmMaxTokensPerCall: getNumberEnv(`${prefix}_LLM_MAX_TOKENS_PER_CALL`, fallback.llmMaxTokensPerCall),
+    runMaxSeconds: getNumberEnv(`${prefix}_RUN_MAX_SECONDS`, fallback.runMaxSeconds)
   };
 }
 
@@ -31,7 +32,8 @@ export function resolveStrategyLimits(strategyKey: StrategyKey, base: PipelineLi
       gatherMaxItemsPerSource: Math.min(base.gatherMaxItemsPerSource, 120),
       decideTopN: Math.min(base.decideTopN, 8),
       llmMaxSignalsPerRun: Math.min(base.llmMaxSignalsPerRun, 8),
-      llmMaxCallsPerRun: Math.min(base.llmMaxCallsPerRun, 8)
+      llmMaxCallsPerRun: Math.min(base.llmMaxCallsPerRun, 8),
+      runMaxSeconds: Math.max(base.runMaxSeconds, 90)
     });
     return withBase(fallback, envOverride("KR", fallback));
   }

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { AgentRun, Decision, DailyReport } from "@/core/domain/types";
 import { apiRequest } from "./_components/api_client";
 import { useDashboardContext } from "./_components/dashboard_context";
+import { formatKrSymbol, useKrSymbolNameMap } from "./_components/kr_symbol_names";
 import { marketScopeLabel, runStatusLabel, sourceLabel, stageLabel, triggerLabel, verdictLabel } from "./_components/labels";
 import { trackEvent } from "./_components/telemetry";
 import { EmptyState, ErrorState, LoadingBlock } from "./_components/ui_primitives";
@@ -78,6 +79,11 @@ export default function DashboardCockpitPage() {
     const timings = summary?.runHealth.latestRun?.stageTimingsMs ?? {};
     return Object.entries(timings).sort((a, b) => (b[1] ?? 0) - (a[1] ?? 0));
   }, [summary]);
+
+  const krSymbolNames = useKrSymbolNameMap(
+    summary?.latest.decisions.map((item) => item.symbol) ?? [],
+    token
+  );
 
   if (loading) return <LoadingBlock label="콕핏 데이터를 불러오는 중..." />;
   if (error) return <ErrorState message={error} />;
@@ -188,7 +194,7 @@ export default function DashboardCockpitPage() {
               summary.latest.decisions.map((d) => (
                 <div key={d.id} className="list-item">
                   <div className="list-item-head">
-                    <strong>{d.symbol}</strong>
+                    <strong>{formatKrSymbol(d.symbol, krSymbolNames)}</strong>
                     <span className="badge">{verdictLabel(d.verdict)}</span>
                   </div>
                   <p>{d.thesisSummary}</p>

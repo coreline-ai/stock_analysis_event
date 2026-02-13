@@ -1,5 +1,6 @@
 import type { SignalRaw } from "@/core/domain/types";
 import { extractKrTickerCandidates, extractTickerCandidates } from "../normalize/symbol_map";
+import { extractKrTickerCandidatesByName } from "../normalize/kr_ticker_cache";
 import { nowIso } from "@/core/utils/time";
 import { getEnv } from "@/config/runtime";
 import { fetchJson, fetchText } from "./http";
@@ -49,7 +50,7 @@ export async function gatherNews(limit = 20): Promise<SignalRaw[]> {
   }
 
   const xml = await fetchText(
-    "https://news.google.com/rss/search?q=stock%20market%20OR%20earnings%20OR%20ipo&hl=en-US&gl=US&ceid=US:en"
+    "https://news.google.com/rss/search?q=(stock%20market%20OR%20earnings%20OR%20ipo)%20when:1d&hl=en-US&gl=US&ceid=US:en"
   );
   if (!xml) return [];
   const items = parseRssItems(xml);
@@ -84,7 +85,11 @@ export async function gatherKrNews(limit = 20): Promise<SignalRaw[]> {
       const title = a.title ?? "";
       const body = a.description ?? "";
       const text = `${title} ${body}`.trim();
-      const symbols = [...extractKrTickerCandidates(text), ...extractTickerCandidates(text)];
+      const symbols = [
+        ...extractKrTickerCandidates(text),
+        ...extractTickerCandidates(text),
+        ...extractKrTickerCandidatesByName(text)
+      ];
       return {
         source: "kr_news",
         externalId: a.url ?? `kr_news_${Date.now()}`,
@@ -102,14 +107,18 @@ export async function gatherKrNews(limit = 20): Promise<SignalRaw[]> {
   }
 
   const xml = await fetchText(
-    "https://news.google.com/rss/search?q=한국%20주식%20OR%20코스피%20OR%20코스닥%20OR%20%EC%82%BC%EC%84%B1%EC%A0%84%EC%9E%90&hl=ko&gl=KR&ceid=KR:ko"
+    "https://news.google.com/rss/search?q=(한국%20주식%20OR%20코스피%20OR%20코스닥%20OR%20개별종목%20OR%20증권사%20리포트)%20when:1d&hl=ko&gl=KR&ceid=KR:ko"
   );
   if (!xml) return [];
   const items = parseRssItems(xml);
 
   return items.slice(0, limit).map((item) => {
     const text = `${item.title}`.trim();
-    const symbols = [...extractKrTickerCandidates(text), ...extractTickerCandidates(text)];
+    const symbols = [
+      ...extractKrTickerCandidates(text),
+      ...extractTickerCandidates(text),
+      ...extractKrTickerCandidatesByName(text)
+    ];
     return {
       source: "kr_news",
       externalId: item.link || `kr_news_${Date.now()}`,

@@ -134,6 +134,13 @@ function formatDecisionSection(
   return lines;
 }
 
+function getKstDateStr(): string {
+  const now = new Date();
+  const kstOffset = 9 * 60 * 60 * 1000;
+  const kstDate = new Date(now.getTime() + kstOffset);
+  return kstDate.toISOString().slice(0, 10);
+}
+
 export function buildDailyReport(
   decisions: Decision[],
   scoredSignals: SignalScored[] = [],
@@ -147,9 +154,10 @@ export function buildDailyReport(
   const topRisks = topKeywords(decisions.flatMap((d) => d.riskNotes), 8);
   const placeholderCount = decisions.filter((d) => isPlaceholderText(d.thesisSummary)).length;
   const hybrid = summarizeHybrid(scoredSignals);
+  const reportDate = getKstDateStr();
 
   const lines: string[] = [];
-  lines.push(`# 일일 리포트 (${new Date().toISOString().slice(0, 10)})`);
+  lines.push(`# 일일 리포트 (${reportDate})`);
   lines.push("");
   lines.push("## 판단 요약");
   lines.push(`- 실행 스코프: ${marketScopeLabel(marketScope)} (${marketScope})`);
@@ -182,7 +190,7 @@ export function buildDailyReport(
   lines.push(topRisks.length > 0 ? topRisks.map((item) => `- ${item}`).join("\n") : "- 없음");
 
   return {
-    reportDate: new Date().toISOString().slice(0, 10),
+    reportDate,
     marketScope,
     summaryMarkdown: lines.join("\n"),
     topBuyNow: buyNow.map((d) => d.id || "").filter(Boolean),

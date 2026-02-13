@@ -4,6 +4,13 @@
 
 ---
 
+## Deepstock 리브랜딩 계획 연결
+
+- [x] 리브랜딩 전용 계획서 작성: `docs/DEEPSTOCK_REBRANDING_PLAN.md`
+- [ ] 리브랜딩 구현 진행은 위 계획서의 체크박스를 단일 기준으로 관리
+
+---
+
 ## 예제 코드 참조 매핑 (포팅 기준)
 
 - [x] Reddit gatherer 기준: `example/MAHORAGA-main/src/strategy/default/gatherers/reddit.ts`
@@ -617,3 +624,150 @@
 - [x] GUI 품질 테스트 스크립트를 2버튼 UX(미국/한국 실행) 기준으로 갱신
 - [x] 인증/GUI 토큰 표기를 `API_TOKEN` 우선으로 전환 (레거시 `MAHORAGA_*` 호환 유지)
 - [x] 검증 완료: `npm test`, `npm run build`, `npm run test:gui`, `POST /api/agent/trigger (KR)` 성공
+
+---
+
+## WS-Y 신규 고급 GUI 시각화 확장 (레이더/관문/수급/리스크/트리거)
+
+요청된 신규 GUI 요구사항(정량 레이더, 삼관왕 관문, VSI 게이지, 스마트머니 수급, 리스크 히트맵, 융합 가중치, KR 지능형 검색, 진입 트리거 추적)을 통합한 구현 계획.
+
+### WS-Y0 요구사항/데이터 계약 확정
+
+- [x] 화면 대상 확정: `app/dashboard/signals/page.tsx`, `app/dashboard/decisions/page.tsx`
+- [x] 공통 위젯 위치 확정: Signals 상세 패널 우선, Decisions 상세는 요약형
+- [x] 시각화 입력 필드 계약 확정:
+- [x] `socialScore`, `eventScore`, `volumeScore`, `flowScore`, `technicalScore`
+- [x] `quantScore`, `quantMultiplier`, `hardFilterPassed`, `tripleCrownPassed`
+- [x] `socialLayerPassed`, `eventLayerPassed`, `volumeGuardPassed`, `flowGuardPassed`, `technicalGuardPassed`
+- [x] `contextRiskScore`, `entryTrigger`
+- [x] 결측치 정책 확정: `null`이면 회색/점선/`N/A`로 표시, 계산 제외
+- [x] 성능 예산 확정: 단일 상세 위젯 렌더 16ms 이하, 리스트 스크롤 FPS 저하 없음
+
+### WS-Y1 시각화 컴포넌트 기반 구축
+
+- [x] `app/dashboard/_components/charts/` 디렉터리 신설
+- [x] `RadarPentagonChart` 컴포넌트 추가 (5축 정량 레이더)
+- [x] `StackedWeightBar` 컴포넌트 추가 (융합 가중치 분해)
+- [x] `EnergyGauge` 컴포넌트 추가 (VSI 에너지 게이지)
+- [x] `FlowBalanceBar` 컴포넌트 추가 (스마트머니 수급 바)
+- [x] `RiskHeatmapPanel` 컴포넌트 추가 (리스크 히트맵/태그)
+- [x] 모든 컴포넌트에 접근성 속성 추가 (`role`, `aria-label`, `aria-valuenow`)
+- [x] 모바일/태블릿/데스크톱 반응형 레이아웃 토큰 추가
+
+### WS-Y2 5대 핵심 지표 레이더 차트
+
+- [x] 레이더 축 매핑 구현:
+- [x] `Social = socialScore`
+- [x] `Event = eventScore`
+- [x] `Volume(VSI) = volumeScore`
+- [x] `Flow = flowScore`
+- [x] `Technical = technicalScore`
+- [x] 스코어 정규화 보정 (0~1 범위 고정)
+- [x] 기형 패턴 하이라이트 규칙 추가:
+- [x] `social` 고점 + `volume/flow` 저점 시 "허수 경고"
+- [x] `event + volume + flow` 동반 고점 시 "실수급 후보"
+- [x] Signals 상세 패널에 레이더 삽입
+- [x] 툴팁에 원점수/해석 문구 표시
+
+### WS-Y3 삼관왕 관문 대시보드 + 배지
+
+- [x] Triple Crown 스텝 바 추가:
+- [x] `Social Layer -> Event Layer -> Quant Gate`
+- [x] 관문별 pass/fail 컬러 및 실패 사유 노출
+- [x] 3메달 배지 UI 추가:
+- [x] `관(Social)` = `socialLayerPassed`
+- [x] `모(Event)` = `eventLayerPassed`
+- [x] `신(Quant)` = `hardFilterPassed` + 가드 종합
+- [x] `tripleCrownPassed=true`일 때 특수 테두리/강조 효과
+- [x] BUY_NOW가 아닌 이유 자동 설명 문구 연결
+
+### WS-Y4 VSI 게이지 + 스마트 머니 수급 트래커
+
+- [x] `volumeScore`를 RPM형 게이지로 표시
+- [x] 게이지 구간 정의:
+- [x] 0.0~0.39 저활성
+- [x] 0.4~0.74 관찰
+- [x] 0.75~1.0 폭발
+- [x] `flowScore`를 Blue/Red 수급 밸런스 바로 표시
+- [x] Social 대비 Flow 괴리율 계산/표시:
+- [x] `gap = socialScore - flowScore`
+- [x] 괴리율 임계치 초과 시 "관심 대비 실수급 부족" 경고
+
+### WS-Y5 리스크 히트맵 & 경고 인디케이터
+
+- [x] `contextRiskScore` 기반 히트맵 색상 단계 정의
+- [x] 리스크 태그 생성 규칙 추가:
+- [x] `[이격도 과열]` `[52주 고점 근접]` `[기관 매도 우위]` `[거래량 미달]` `[기술 관문 미충족]`
+- [x] `volumeGuardPassed`, `technicalGuardPassed`, `flowGuardPassed` 연계 경고
+- [x] Decisions 상세/Signals 상세에 동일 태그 체계 재사용
+
+### WS-Y6 융합 가중치 비주얼라이저
+
+- [x] `finalScore` 분해 모델 표시:
+- [x] `social`, `event`, `quant` 기여분 누적 막대
+- [x] `quantMultiplier`가 최종 점수에 미친 증폭/감쇠 표시
+- [x] 기여분 합계와 `finalScore` 정합성 검증 로직 추가
+- [x] "소셜 거품" 탐지 배지 추가 (`social` 비중 과다 + `quant` 저조)
+
+### WS-Y7 KR 지능형 종목 검색기
+
+- [x] 검색 입력창 확장: 코드/한글 종목명 동시 지원
+- [x] `kr_ticker_cache` 기반 자동완성 API 추가 (`/api/agent/symbols/search?q=`)
+- [x] 추천 목록 UI 추가 (`005930 삼성전자` 형태)
+- [x] 선택 시 기존 `scope`/`tab` 유지한 채 필터 적용
+- [x] 미국 심볼 검색과 충돌 없는 분기 처리 (`scope=KR` 우선 한글 추천)
+
+### WS-Y8 진입 트리거 도달률 게이지
+
+- [x] `entryTrigger` 파싱 정책 정의 (가격/퍼센트/조건문)
+- [x] 파싱 실패 시 텍스트 모드 fallback 제공
+- [x] 현재가 데이터 소스 연결 설계:
+- [x] KR: 무료 지연 시세 소스
+- [x] US: 무료/제한형 quote API
+- [x] 트리거 대비 현재가 진척도 바 표시:
+- [x] `목표가까지 남은 거리(%)`
+- [x] `진입권 근접` 배지 (예: 2% 이내)
+- [x] 시세 데이터 미수신 시 `데이터 없음` 안전 처리
+
+### WS-Y9 API/백엔드 보강
+
+- [x] `GET /api/agent/signals/scored` 응답에 시각화 필요 필드 누락 재점검
+- [x] 신규 심볼 자동완성 API 추가 (`/api/agent/symbols/search`)
+- [x] 트리거 도달률 계산용 quote API 프록시 추가 (`/api/agent/quotes`)
+- [x] API 캐시 정책 정의 (심볼 검색 5분, quote 30~60초)
+- [x] 에러 코드 확장 (`quote_unavailable`, `symbol_not_found`)
+
+### WS-Y10 병렬 개발 배치
+
+- [x] 트랙 A(시각화): WS-Y1, WS-Y2, WS-Y4, WS-Y6
+- [x] 트랙 B(판단 설명): WS-Y3, WS-Y5
+- [x] 트랙 C(검색/트리거): WS-Y7, WS-Y8
+- [x] 트랙 D(API): WS-Y9
+- [x] 병합 순서: D -> A -> B -> C
+
+### WS-Y11 검증/테스트 계획
+
+#### 기능 테스트
+
+- [x] 레이더 차트 값이 DB 원점수와 일치
+- [x] 삼관왕 관문 단계별 상태가 pass 플래그와 일치
+- [x] VSI 게이지 구간 색상이 `volumeScore` 임계치와 일치
+- [x] Flow 바와 괴리율 경고가 `flowScore/socialScore` 계산과 일치
+- [x] 리스크 태그가 `contextRiskScore`/가드 플래그와 일치
+- [x] Stacked Bar 기여분 합계가 `finalScore` 논리와 일치
+- [x] KR 한글 검색 자동완성/필터 반영 정상 동작
+- [x] Entry Trigger 게이지가 현재가 변화에 따라 정상 갱신
+
+#### 품질 테스트
+
+- [x] `npm run test:gui` 통과
+- [x] 모바일/태블릿/데스크톱 시각화 깨짐 없음
+- [x] 접근성 위반 0 유지(axe 기준)
+- [x] 성능 회귀 없음(LCP/TTFB 기존 예산 이내)
+
+#### 완료 기준 (Definition of Done)
+
+- [x] 신규 위젯 8종 모두 Signals/Decisions 화면에서 확인 가능
+- [x] KR/US 스코프 전환 시 데이터/검색/차트 일관성 유지
+- [x] 문서 갱신 완료 (`docs/API_GUI_CONTRACT.md`, `docs/GUI_QUALITY_REPORT.md`, 본 문서)
+- [x] 회귀 검증 완료 (`npm test`, `npm run build`, `npm run test:gui`)

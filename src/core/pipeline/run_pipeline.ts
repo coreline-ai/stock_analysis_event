@@ -1,4 +1,4 @@
-import { assertNoForbiddenEnv, getEnv } from "@/config/runtime";
+import { assertNoForbiddenEnv, getEnv, getNumberEnv } from "@/config/runtime";
 import { LIMITS } from "@/config/limits";
 import { resolveStrategyLimits } from "@/config/strategy_limits";
 import { runGather } from "@/core/pipeline/stages/gather";
@@ -21,12 +21,17 @@ import { sha256 } from "@/core/utils/hash";
 import type { AgentRunStatus, Decision, DailyReport, MarketScope, SignalRaw, SignalScored } from "@/core/domain/types";
 import type { PipelineAdapters, PipelineContext } from "@/core/pipeline/types";
 import { createLLMProviderFromEnv } from "@/adapters/llm/factory";
+import type { LLMProviderName } from "@/adapters/llm/provider";
 import { defaultStrategyForScope, parseMarketScope, parseStrategyKey } from "@/core/pipeline/strategy_keys";
+import { normalizeKrSymbol, normalizeSymbol } from "@/core/pipeline/stages/normalize/symbol_map";
 
 export interface RunPipelineOptions {
   triggerType: "cron" | "manual";
   marketScope?: MarketScope;
   strategyKey?: string;
+  llmProviderName?: LLMProviderName | null;
+  targetSymbol?: string;
+  ignoreMinInterval?: boolean;
   adapters?: PipelineAdapters;
 }
 
@@ -48,10 +53,20 @@ export async function runPipeline(opts: RunPipelineOptions): Promise<RunPipeline
   if (!defaultScope) throw new Error("invalid_request");
 
   const marketScope = opts.marketScope ?? defaultScope;
+  const rawTargetSymbol = opts.targetSymbol?.trim();
+  const targetSymbol =
+    rawTargetSymbol && rawTargetSymbol.length > 0
+      ? marketScope === "KR"
+        ? normalizeKrSymbol(rawTargetSymbol)
+        : normalizeSymbol(rawTargetSymbol)
+      : null;
+  if (rawTargetSymbol && !targetSymbol) throw new Error("invalid_target_symbol");
+
   const defaultStrategy = getEnv("DEFAULT_STRATEGY_KEY", defaultStrategyForScope(marketScope));
   const strategyKey = parseStrategyKey(opts.strategyKey ?? defaultStrategy, marketScope);
   if (!strategyKey) throw new Error("invalid_request");
   const limits = resolveStrategyLimits(strategyKey, LIMITS);
+  const scoreMaxPerSymbol = Math.max(1, getNumberEnv("SCORE_MAX_PER_SYMBOL", 6));
 
   const startedAt = nowIso();
   const runId = sha256(`${startedAt}-${Math.random().toString(36).slice(2)}`);
@@ -80,7 +95,7 @@ export async function runPipeline(opts: RunPipelineOptions): Promise<RunPipeline
     logger.info("pipeline_start", { triggerType: opts.triggerType, marketScope, strategyKey });
 
     const latest = await getLatestAgentRun(marketScope);
-    if (latest?.startedAt) {
+    if (!opts.ignoreMinInterval && latest?.startedAt) {
       const elapsedSeconds = (Date.now() - new Date(latest.startedAt).getTime()) / 1000;
       if (elapsedSeconds < limits.minSecondsBetweenRuns) {
         status = "partial";
@@ -127,6 +142,13 @@ export async function runPipeline(opts: RunPipelineOptions): Promise<RunPipeline
       return { runId, marketScope, strategyKey, status, errorSummary, rawCount: 0, scoredCount: 0, decidedCount: 0 };
     }
 
+    const tickerStart = Date.now();
+    await refreshSecTickersIfNeeded();
+    if (marketScope === "KR" || marketScope === "ALL") {
+      await refreshKrTickersIfNeeded();
+    }
+    stageTimings.ticker_cache_ms = Date.now() - tickerStart;
+
     const gatherStart = Date.now();
     const gatherResult = await runGather(marketScope, limits);
     stageTimings.gather_ms = Date.now() - gatherStart;
@@ -138,13 +160,6 @@ export async function runPipeline(opts: RunPipelineOptions): Promise<RunPipeline
     }
     rawSignals = Array.from(deduped.values());
 
-    const tickerStart = Date.now();
-    await refreshSecTickersIfNeeded();
-    if (marketScope === "KR" || marketScope === "ALL") {
-      await refreshKrTickersIfNeeded();
-    }
-    stageTimings.ticker_cache_ms = Date.now() - tickerStart;
-
     const rawInsertStart = Date.now();
     const rawWithIds: SignalRaw[] = [];
     for (const raw of rawSignals) {
@@ -154,13 +169,34 @@ export async function runPipeline(opts: RunPipelineOptions): Promise<RunPipeline
     stageTimings.raw_insert_ms = Date.now() - rawInsertStart;
 
     const normalizeStart = Date.now();
-    const normalized = normalizeSignals(rawWithIds);
+    let normalized = normalizeSignals(rawWithIds);
+    if (targetSymbol) {
+      normalized = normalized.filter((item) => item.symbol === targetSymbol);
+      const filteredRawIds = new Set(normalized.map((item) => item.rawId));
+      rawSignals = rawWithIds.filter((item) => filteredRawIds.has(item.id ?? ""));
+    } else {
+      rawSignals = rawWithIds;
+    }
     stageTimings.normalize_ms = Date.now() - normalizeStart;
 
     const scoreStart = Date.now();
     const scored = scoreSignals(normalized).sort((a, b) => b.finalScore - a.finalScore);
     stageTimings.score_ms = Date.now() - scoreStart;
-    scoredSignals = scored.slice(0, limits.scoreTopN);
+    if (targetSymbol) {
+      const symbolScoreTopN = Math.max(scoreMaxPerSymbol, getNumberEnv("SYMBOL_SCORE_TOP_N", 30));
+      scoredSignals = scored.slice(0, symbolScoreTopN);
+    } else {
+      const symbolCount = new Map<string, number>();
+      const capped: SignalScored[] = [];
+      for (const signal of scored) {
+        const current = symbolCount.get(signal.symbol) ?? 0;
+        if (current >= scoreMaxPerSymbol) continue;
+        capped.push(signal);
+        symbolCount.set(signal.symbol, current + 1);
+        if (capped.length >= limits.scoreTopN) break;
+      }
+      scoredSignals = capped;
+    }
 
     const scoredInsertStart = Date.now();
     scoredWithIds = [];
@@ -171,9 +207,19 @@ export async function runPipeline(opts: RunPipelineOptions): Promise<RunPipeline
     stageTimings.scored_insert_ms = Date.now() - scoredInsertStart;
 
     const decideStart = Date.now();
-    const deadlineMs = Date.now() + limits.runMaxSeconds * 1000;
-    const llmProvider = opts.adapters?.llmProvider ?? createLLMProviderFromEnv();
-    decisions = await decideSignals(scoredWithIds, llmProvider, deadlineMs, { marketScope, limits });
+    const symbolRunMaxSeconds = getNumberEnv("SYMBOL_RUN_MAX_SECONDS", 90);
+    const effectiveLimits = targetSymbol
+      ? {
+          ...limits,
+          decideTopN: Math.max(limits.decideTopN, 20),
+          llmMaxSignalsPerRun: Math.max(limits.llmMaxSignalsPerRun, 20),
+          llmMaxCallsPerRun: Math.max(limits.llmMaxCallsPerRun, 2),
+          runMaxSeconds: Math.max(limits.runMaxSeconds, symbolRunMaxSeconds)
+        }
+      : limits;
+    const deadlineMs = Date.now() + effectiveLimits.runMaxSeconds * 1000;
+    const llmProvider = opts.adapters?.llmProvider ?? createLLMProviderFromEnv(opts.llmProviderName);
+    decisions = await decideSignals(scoredWithIds, llmProvider, deadlineMs, { marketScope, limits: effectiveLimits });
     stageTimings.decide_ms = Date.now() - decideStart;
     if (Date.now() > deadlineMs) {
       status = "partial";

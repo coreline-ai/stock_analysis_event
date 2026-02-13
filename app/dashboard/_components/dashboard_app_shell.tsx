@@ -19,7 +19,7 @@ const NAV_LINKS = [
 
 function ShellInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { token, setToken, requestRefresh, setAuthRequired, authRequired, pushToast, toasts, removeToast } =
+  const { token, setToken, llmProvider, setLlmProvider, requestRefresh, setAuthRequired, authRequired, pushToast, toasts, removeToast } =
     useDashboardContext();
   const [tokenInput, setTokenInput] = useState(token);
   const [runningUS, setRunningUS] = useState(false);
@@ -69,7 +69,7 @@ function ShellInner({ children }: { children: React.ReactNode }) {
       scoredCount: number;
       decidedCount: number;
       reportId?: string;
-    }>("/api/agent/trigger", { token, method: "POST", body: { marketScope, strategyKey } });
+    }>("/api/agent/trigger", { token, method: "POST", body: { marketScope, strategyKey, llmProvider } });
     if (marketScope === "US") setRunningUS(false);
     if (marketScope === "KR") setRunningKR(false);
 
@@ -185,9 +185,18 @@ function ShellInner({ children }: { children: React.ReactNode }) {
               <span className="pill">리서치 전용</span>
               <span className="pill">실거래 실행 없음</span>
               <span className="pill">GUI 사용 가능</span>
+              <span className="pill">LLM: {llmProvider.toUpperCase()}</span>
             </div>
           </div>
           <div className="dash-header-actions">
+            <label className="inline-select">
+              LLM
+              <select value={llmProvider} onChange={(e) => setLlmProvider(e.target.value as "glm" | "openai" | "gemini")}>
+                <option value="glm">GLM</option>
+                <option value="openai">OpenAI</option>
+                <option value="gemini">Gemini</option>
+              </select>
+            </label>
             <button
               type="button"
               className="run-button"

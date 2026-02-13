@@ -3,10 +3,14 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import type { Decision } from "@/core/domain/types";
+import type { Decision, SignalScored } from "@/core/domain/types";
 import { apiRequest } from "../_components/api_client";
+import { EntryTriggerTracker } from "../_components/charts/entry_trigger_tracker";
+import { RiskHeatmapPanel } from "../_components/charts/risk_heatmap_panel";
 import { useDashboardContext } from "../_components/dashboard_context";
+import { formatKrSymbol, useKrSymbolNameMap } from "../_components/kr_symbol_names";
 import { horizonLabel, marketScopeLabel, verdictLabel } from "../_components/labels";
+import { useSymbolSuggestions } from "../_components/symbol_autocomplete";
 import { trackEvent } from "../_components/telemetry";
 import { EmptyState, ErrorState, LoadingBlock } from "../_components/ui_primitives";
 
@@ -28,6 +32,7 @@ export default function DecisionsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [items, setItems] = useState<Decision[]>([]);
+  const [scoredItems, setScoredItems] = useState<SignalScored[]>([]);
   const [symbol, setSymbol] = useState("");
   const [scope, setScope] = useState("ALL");
   const [verdict, setVerdict] = useState("ALL");
@@ -66,17 +71,27 @@ export default function DecisionsPage() {
       setLoading(true);
       setError("");
       const scopeQuery = scope !== "ALL" ? `&scope=${scope}` : "";
-      const res = await apiRequest<unknown>(`/api/agent/decisions?limit=200&offset=0${scopeQuery}`, { token });
+      const [decisionRes, scoredRes] = await Promise.all([
+        apiRequest<unknown>(`/api/agent/decisions?limit=200&offset=0${scopeQuery}`, { token }),
+        apiRequest<{ items: SignalScored[] }>(`/api/agent/signals/scored?limit=300&offset=0${scopeQuery}`, { token })
+      ]);
       if (cancelled) return;
       setLoading(false);
-      if (!res.ok) {
-        if (res.status === 401) setAuthRequired(true);
+      if (!decisionRes.ok) {
+        if (decisionRes.status === 401) setAuthRequired(true);
         setItems([]);
-        setError(res.error);
+        setError(decisionRes.error);
         return;
       }
-      const list = asItems(res.data);
+      if (!scoredRes.ok) {
+        if (scoredRes.status === 401) setAuthRequired(true);
+        setItems([]);
+        setError(scoredRes.error);
+        return;
+      }
+      const list = asItems(decisionRes.data);
       setItems(list);
+      setScoredItems(scoredRes.data.items ?? []);
       if (list.length > 0) setSelectedId(list[0].id ?? "");
     }
     load();
@@ -85,16 +100,36 @@ export default function DecisionsPage() {
     };
   }, [token, refreshKey, setAuthRequired, scope]);
 
+  const krSymbolNames = useKrSymbolNameMap(
+    items.map((item) => item.symbol),
+    token
+  );
+
+  const { items: symbolSuggestions, loading: suggestionLoading } = useSymbolSuggestions({
+    query: symbol,
+    scope,
+    token,
+    enabled: true
+  });
+
+  function normalizeSearchText(value: string): string {
+    return value.replace(/\s+/g, "").toUpperCase();
+  }
+
   const filtered = useMemo(() => {
-    const sym = symbol.trim().toUpperCase();
+    const sym = normalizeSearchText(symbol.trim());
     return items.filter((d) => {
-      if (sym && !d.symbol.toUpperCase().includes(sym)) return false;
+      if (sym) {
+        const symbolMatch = normalizeSearchText(d.symbol).includes(sym);
+        const nameMatch = normalizeSearchText(krSymbolNames[d.symbol] ?? "").includes(sym);
+        if (!symbolMatch && !nameMatch) return false;
+      }
       if (verdict !== "ALL" && d.verdict !== verdict) return false;
       if (horizon !== "ALL" && d.timeHorizon !== horizon) return false;
       if (d.confidence < minConfidence) return false;
       return true;
     });
-  }, [items, symbol, verdict, horizon, minConfidence]);
+  }, [items, symbol, verdict, horizon, minConfidence, krSymbolNames]);
 
   useEffect(() => {
     setPage(1);
@@ -109,6 +144,21 @@ export default function DecisionsPage() {
   const clampedPage = Math.min(page, pageCount);
   const pageItems = filtered.slice((clampedPage - 1) * PAGE_SIZE, clampedPage * PAGE_SIZE);
   const selected = filtered.find((d) => d.id === selectedId) ?? pageItems[0] ?? null;
+  const scoredById = useMemo(() => {
+    const map = new Map<string, SignalScored>();
+    for (const item of scoredItems) {
+      if (item.id) map.set(item.id, item);
+    }
+    return map;
+  }, [scoredItems]);
+  const linkedScored = useMemo(() => {
+    if (!selected) return null;
+    for (const sourceId of selected.sourcesUsed) {
+      const scored = scoredById.get(sourceId);
+      if (scored) return scored;
+    }
+    return null;
+  }, [selected, scoredById]);
 
   if (loading) return <LoadingBlock label="판단 데이터를 불러오는 중..." />;
   if (error) return <ErrorState message={error} />;
@@ -121,7 +171,28 @@ export default function DecisionsPage() {
         <div className="filters-grid">
           <label>
             심볼
-            <input value={symbol} onChange={(e) => setSymbol(e.target.value)} placeholder="TSLA" />
+            <div className="symbol-search-wrap">
+              <input
+                value={symbol}
+                onChange={(e) => setSymbol(e.target.value)}
+                placeholder={scope === "KR" ? "코드/한글 종목명" : "TSLA"}
+              />
+              {scope === "KR" && (suggestionLoading || symbolSuggestions.length > 0) ? (
+                <div className="autocomplete-list" role="listbox" aria-label="한국 종목 자동완성">
+                  {symbolSuggestions.map((item) => (
+                    <button
+                      key={`${item.marketScope}:${item.symbol}`}
+                      type="button"
+                      className="autocomplete-item"
+                      onClick={() => setSymbol(item.symbol)}
+                    >
+                      {item.display}
+                    </button>
+                  ))}
+                  {suggestionLoading ? <div className="autocomplete-item muted">검색 중...</div> : null}
+                </div>
+              ) : null}
+            </div>
           </label>
           <label>
             시장
@@ -175,7 +246,7 @@ export default function DecisionsPage() {
                 onClick={() => setSelectedId(d.id ?? "")}
               >
                 <div className="list-item-head">
-                  <strong>{d.symbol}</strong>
+                  <strong>{formatKrSymbol(d.symbol, krSymbolNames)}</strong>
                   <span className="badge">{verdictLabel(d.verdict)}</span>
                 </div>
                 <p>시장: {marketScopeLabel(d.marketScope)}</p>
@@ -207,13 +278,22 @@ export default function DecisionsPage() {
             <p>목록에서 판단을 선택하세요.</p>
           ) : (
             <div className="detail-stack">
-              <p><strong>심볼:</strong> {selected.symbol}</p>
+              <p><strong>심볼:</strong> {formatKrSymbol(selected.symbol, krSymbolNames)}</p>
               <p><strong>시장:</strong> {marketScopeLabel(selected.marketScope)}</p>
               <p><strong>판단:</strong> {verdictLabel(selected.verdict)}</p>
               <p><strong>신뢰도:</strong> {Math.round(selected.confidence * 100)}%</p>
               <p><strong>호라이즌:</strong> {horizonLabel(selected.timeHorizon)}</p>
               <p><strong>핵심 근거:</strong> {selected.thesisSummary}</p>
               <p><strong>진입 트리거:</strong> {selected.entryTrigger}</p>
+              <EntryTriggerTracker symbol={selected.symbol} entryTrigger={selected.entryTrigger} token={token} />
+              {linkedScored ? (
+                <RiskHeatmapPanel
+                  contextRiskScore={linkedScored.contextRiskScore}
+                  volumeGuardPassed={linkedScored.volumeGuardPassed}
+                  flowGuardPassed={linkedScored.flowGuardPassed}
+                  technicalGuardPassed={linkedScored.technicalGuardPassed}
+                />
+              ) : null}
               <p><strong>무효화 조건:</strong> {selected.invalidation}</p>
               <p><strong>리스크 노트:</strong> {selected.riskNotes.join(", ") || "-"}</p>
               <p><strong>촉매 요인:</strong> {selected.catalysts.join(", ") || "-"}</p>

@@ -74,3 +74,36 @@ export async function countDecisions(scope?: MarketScope): Promise<number> {
   const rows = await query<{ count: string }>(`SELECT COUNT(*)::text as count FROM decisions ${whereClause}`, params);
   return Number(rows[0]?.count ?? "0");
 }
+
+export async function listDecisionsBySymbol(symbol: string, limit = 10, scope?: MarketScope): Promise<Decision[]> {
+  const whereScope = scope ? "AND market_scope = $3" : "";
+  const params = scope ? [symbol, limit, scope] : [symbol, limit];
+  return query<Decision>(
+    `SELECT
+      id,
+      symbol,
+      market_scope as "marketScope",
+      verdict,
+      confidence,
+      time_horizon as "timeHorizon",
+      thesis_summary as "thesisSummary",
+      entry_trigger as "entryTrigger",
+      invalidation,
+      risk_notes as "riskNotes",
+      bull_case as "bullCase",
+      bear_case as "bearCase",
+      red_flags as "redFlags",
+      catalysts,
+      sources_used as "sourcesUsed",
+      llm_model as "llmModel",
+      prompt_version as "promptVersion",
+      schema_version as "schemaVersion",
+      created_at as "createdAt"
+     FROM decisions
+     WHERE symbol = $1
+     ${whereScope}
+     ORDER BY created_at DESC
+     LIMIT $2`,
+    params
+  );
+}

@@ -199,6 +199,7 @@ async function testKrMissingDartKeyGracefulSkip() {
   const prevKrResearch = process.env.KR_RESEARCH_ENABLED;
   const prevKrGlobalContext = process.env.KR_GLOBAL_CONTEXT_ENABLED;
   const prevDartKey = process.env.DART_API_KEY;
+  const prevDartFallback = process.env.DART_NEWS_FALLBACK_ENABLED;
 
   process.env.KR_MARKET_ENABLED = "true";
   process.env.NAVER_ENABLED = "false";
@@ -207,6 +208,7 @@ async function testKrMissingDartKeyGracefulSkip() {
   process.env.KR_NEWS_ENABLED = "false";
   process.env.KR_RESEARCH_ENABLED = "false";
   process.env.KR_GLOBAL_CONTEXT_ENABLED = "false";
+  process.env.DART_NEWS_FALLBACK_ENABLED = "false";
   delete process.env.DART_API_KEY;
 
   const result = await runGather("KR");
@@ -220,6 +222,8 @@ async function testKrMissingDartKeyGracefulSkip() {
   process.env.KR_NEWS_ENABLED = prevKrNews;
   process.env.KR_RESEARCH_ENABLED = prevKrResearch;
   process.env.KR_GLOBAL_CONTEXT_ENABLED = prevKrGlobalContext;
+  if (prevDartFallback === undefined) delete process.env.DART_NEWS_FALLBACK_ENABLED;
+  else process.env.DART_NEWS_FALLBACK_ENABLED = prevDartFallback;
   if (prevDartKey === undefined) delete process.env.DART_API_KEY;
   else process.env.DART_API_KEY = prevDartKey;
 }
