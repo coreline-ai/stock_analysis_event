@@ -47,8 +47,12 @@ export default function SettingsPage() {
         <h3>런타임 설정</h3>
         <p><strong>토큰:</strong> {tokenHint}</p>
         <p>
-          <strong>LLM 제공자:</strong>{" "}
-          <select value={llmProvider} onChange={(e) => setLlmProvider(e.target.value as "glm" | "openai" | "gemini")}>
+          <label htmlFor="settings-llm-provider"><strong>LLM 제공자:</strong></label>{" "}
+          <select
+            id="settings-llm-provider"
+            value={llmProvider}
+            onChange={(e) => setLlmProvider(e.target.value as "glm" | "openai" | "gemini")}
+          >
             <option value="glm">GLM</option>
             <option value="openai">OpenAI</option>
             <option value="gemini">Gemini</option>
@@ -61,14 +65,17 @@ export default function SettingsPage() {
         <p>
           Stub은 실행 경로에서 허용되지 않으며 `LLM_PROVIDER`는 `glm | openai | gemini` 중 하나여야 합니다.
         </p>
+        <p>
+          분석 실행은 주기 스케줄 없이 대시보드의 수동 실행 버튼(미국/한국)으로만 진행됩니다.
+        </p>
       </section>
 
       <section className="card">
         <h3>로컬 빠른 명령어</h3>
         <pre className="code-box">
 {`npm run db:up
-DATABASE_URL=postgres://mahoraga:mahoraga@127.0.0.1:15432/mahoraga npm run db:migrate
-npm run dev:active`}
+DATABASE_URL=postgres://deepstock:deepstock@127.0.0.1:15432/deepstock npm run db:migrate
+npm run dev:local`}
         </pre>
       </section>
 
@@ -103,8 +110,12 @@ npm run dev:active`}
           기존 `stub/tbd/none/없음` 판단 데이터를 정리한 뒤 선택한 LLM으로 지정한 스코프만 재생성합니다.
         </p>
         <p>
-          <strong>대상 스코프:</strong>{" "}
-          <select value={maintenanceScope} onChange={(e) => setMaintenanceScope(e.target.value as MaintenanceScope)}>
+          <label htmlFor="settings-maintenance-scope"><strong>대상 스코프:</strong></label>{" "}
+          <select
+            id="settings-maintenance-scope"
+            value={maintenanceScope}
+            onChange={(e) => setMaintenanceScope(e.target.value as MaintenanceScope)}
+          >
             <option value="KR">KR만</option>
             <option value="US">US만</option>
             <option value="BOTH">KR+US</option>

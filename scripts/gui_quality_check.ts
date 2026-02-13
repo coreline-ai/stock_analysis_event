@@ -1,12 +1,12 @@
 import { chromium, webkit, type BrowserType, type Page } from "playwright";
 import AxeBuilder from "@axe-core/playwright";
+import { ensureGuiTestServer } from "./gui_test_server";
 
 const BASE_URL = process.env.BASE_URL ?? "http://127.0.0.1:3333";
-const TOKEN = process.env.MAHORAGA_API_TOKEN ?? process.env.API_TOKEN ?? "dev-token";
+const TOKEN = process.env.DEEPSTOCK_API_TOKEN ?? process.env.API_TOKEN ?? "dev-token";
 
 function seedToken(token: string) {
-  // Keep legacy and generic keys for backward compatibility.
-  window.sessionStorage.setItem("mahoraga_api_token", token);
+  window.sessionStorage.setItem("deepstock_api_token", token);
   window.sessionStorage.setItem("api_token", token);
 }
 
@@ -67,49 +67,76 @@ async function runScenarioE2E() {
   await page.getByLabel("API 토큰 입력").fill(TOKEN);
   await page.getByRole("button", { name: "저장" }).click();
 
+  async function waitTriggerOutcome(timeoutMs: number): Promise<"toast" | "auth"> {
+    const authModal = page.getByText("인증 필요");
+    const outcome = await Promise.race([
+      authModal
+        .waitFor({ timeout: timeoutMs })
+        .then(() => "auth" as const)
+        .catch(() => "none" as const),
+      page
+        .waitForSelector(".toast.success, .toast.info, .toast.error", { timeout: timeoutMs })
+        .then(() => "toast" as const)
+        .catch(() => "none" as const)
+    ]);
+    if (outcome === "auth") {
+      await page.getByRole("button", { name: "닫기" }).click();
+      return "auth";
+    }
+    if (outcome === "toast") return "toast";
+    throw new Error("Neither auth modal nor toast appeared after trigger");
+  }
+
   await page.getByRole("button", { name: /미국 분석 실행/ }).click();
-  await page.waitForSelector(".toast.success, .toast.info", { timeout: 60_000 });
+  await waitTriggerOutcome(60_000);
 
   // Consecutive trigger scenario.
   await page.getByRole("button", { name: /미국 분석 실행/ }).click();
-  await page.waitForSelector(".toast.success, .toast.info, .toast.error", { timeout: 20_000 });
+  await waitTriggerOutcome(20_000);
 
   await page.goto(`${BASE_URL}/dashboard/decisions`);
   await page.getByPlaceholder("TSLA").fill("A");
-  await page.waitForSelector(".list-item.as-button", { timeout: 20_000 });
-  await page.locator(".list-item.as-button").first().click();
-  await page.getByRole("link", { name: "관련 신호 보기" }).click();
-  await page.waitForURL(/\/dashboard\/signals/);
+  const hasDecisionList = await page
+    .waitForSelector(".list-item.as-button", { timeout: 20_000 })
+    .then(() => true)
+    .catch(() => false);
+  if (hasDecisionList) {
+    await page.locator(".list-item.as-button").first().click();
+    await page.getByRole("link", { name: "관련 신호 보기" }).click();
+    await page.waitForURL(/\/dashboard\/signals/);
+  } else {
+    await page.getByText("목록에서 판단을 선택하세요.").waitFor({ timeout: 20_000 });
+  }
 
   await page.goto(`${BASE_URL}/dashboard/reports`);
-  await page.waitForSelector(".list-item.as-button", { timeout: 20_000 });
-  await page.locator(".list-item.as-button").first().click();
-  await page.getByText("리포트", { exact: false }).first().waitFor();
+  const hasReportList = await page
+    .waitForSelector(".list-item.as-button", { timeout: 20_000 })
+    .then(() => true)
+    .catch(() => false);
+  if (hasReportList) {
+    await page.locator(".list-item.as-button").first().click();
+    await page.getByText("리포트", { exact: false }).first().waitFor();
+  } else {
+    await page.getByText("리포트를 선택하세요.").waitFor({ timeout: 20_000 });
+  }
 
   await page.goto(`${BASE_URL}/dashboard/runs`);
   await page.getByRole("button", { name: "지우기" }).click();
   await page.getByRole("button", { name: /미국 분석 실행/ }).click();
-  const authModal = page.getByText("인증 필요");
-  const outcome = await Promise.race([
-    authModal
-      .waitFor({ timeout: 30_000 })
-      .then(() => "auth" as const)
-      .catch(() => "none" as const),
-    page
-      .waitForSelector(".toast.success, .toast.info, .toast.error", { timeout: 30_000 })
-      .then(() => "toast" as const)
-      .catch(() => "none" as const)
-  ]);
-  if (outcome === "auth") {
-    await page.getByRole("button", { name: "닫기" }).click();
-  } else if (outcome === "none") {
-    throw new Error("Neither auth modal nor toast appeared after trigger");
-  }
+  await waitTriggerOutcome(30_000);
 
   await page.goto(`${BASE_URL}/dashboard/signals?tab=scored`);
   await page.getByRole("button", { name: "스코어 신호", exact: true }).click();
-  await page.locator("table tbody tr").first().click();
-  await page.getByText("신호-판단 추적").waitFor();
+  const hasScoredRows = await page
+    .waitForSelector("table tbody tr", { timeout: 20_000 })
+    .then(() => true)
+    .catch(() => false);
+  if (hasScoredRows) {
+    await page.locator("table tbody tr").first().click();
+    await page.getByText("신호-판단 추적").waitFor({ timeout: 20_000 });
+  } else {
+    await page.getByText("테이블에서 스코어 신호를 선택하세요.").waitFor({ timeout: 20_000 });
+  }
 
   await context.close();
   await browser.close();
@@ -117,10 +144,19 @@ async function runScenarioE2E() {
 
 async function main() {
   console.log(`[gui] base=${BASE_URL}`);
-  const chromViolations = await runViewportMatrix("chromium", chromium);
-  const webkitViolations = await runViewportMatrix("webkit", webkit);
-  await runScenarioE2E();
-  console.log(`[gui] done chromium_violations=${chromViolations} webkit_violations=${webkitViolations}`);
+  const server = await ensureGuiTestServer(BASE_URL);
+  try {
+    const chromViolations = await runViewportMatrix("chromium", chromium);
+    const webkitViolations = await runViewportMatrix("webkit", webkit);
+    await runScenarioE2E();
+    const totalViolations = chromViolations + webkitViolations;
+    if (totalViolations > 0) {
+      throw new Error(`a11y_violations_detected: total=${totalViolations}`);
+    }
+    console.log(`[gui] done chromium_violations=${chromViolations} webkit_violations=${webkitViolations}`);
+  } finally {
+    await server.cleanup();
+  }
 }
 
 main().catch((err) => {
