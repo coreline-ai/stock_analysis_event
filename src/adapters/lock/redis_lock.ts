@@ -6,6 +6,16 @@ export interface LockHandle {
 }
 
 const memoryLocks = new Map<string, { token: string; expiresAt: number }>();
+const COMPARE_AND_DELETE_LUA = "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end";
+
+function resolveLockConfig(): { url: string; token: string } {
+  const url = getEnv("UPSTASH_REDIS_REST_URL");
+  const token = getEnv("UPSTASH_REDIS_REST_TOKEN");
+  if (!url || !token) {
+    throw new Error("Missing required env: UPSTASH_REDIS_REST_URL/UPSTASH_REDIS_REST_TOKEN");
+  }
+  return { url, token };
+}
 
 function acquireMemoryLock(key: string, ttlMs: number): LockHandle | null {
   const existing = memoryLocks.get(key);
@@ -24,14 +34,10 @@ function releaseMemoryLock(handle: LockHandle): void {
 }
 
 export async function acquireLock(key: string, ttlMs: number): Promise<LockHandle | null> {
-  const url = getEnv("UPSTASH_REDIS_REST_URL");
-  const token = getEnv("UPSTASH_REDIS_REST_TOKEN");
   if (getEnv("LOCK_MODE") === "memory") {
     return acquireMemoryLock(key, ttlMs);
   }
-  if (!url || !token) {
-    return { key, token: "no-lock" };
-  }
+  const { url, token } = resolveLockConfig();
 
   // TTL-based lock: if the holder crashes, TTL expiry releases the lock automatically.
   const lockToken = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -42,6 +48,9 @@ export async function acquireLock(key: string, ttlMs: number): Promise<LockHandl
       method: "POST"
     }
   );
+  if (!res.ok) {
+    throw new Error(`lock_acquire_failed_${res.status}`);
+  }
   const data = (await res.json()) as { result: string | null };
   if (data.result === "OK") {
     return { key, token: lockToken };
@@ -50,23 +59,19 @@ export async function acquireLock(key: string, ttlMs: number): Promise<LockHandl
 }
 
 export async function releaseLock(handle: LockHandle): Promise<void> {
-  const url = getEnv("UPSTASH_REDIS_REST_URL");
-  const token = getEnv("UPSTASH_REDIS_REST_TOKEN");
   if (getEnv("LOCK_MODE") === "memory") {
     releaseMemoryLock(handle);
     return;
   }
-  if (!url || !token || handle.token === "no-lock") return;
+  const { url, token } = resolveLockConfig();
+  const evalRes = await fetch(
+    `${url}/eval/${encodeURIComponent(COMPARE_AND_DELETE_LUA)}/1/${encodeURIComponent(handle.key)}/${encodeURIComponent(handle.token)}`,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+      method: "POST"
+    }
+  );
+  if (!evalRes.ok) return;
 
-  const res = await fetch(`${url}/get/${encodeURIComponent(handle.key)}`, {
-    headers: { Authorization: `Bearer ${token}` },
-    method: "POST"
-  });
-  const data = (await res.json()) as { result: string | null };
-  if (data.result !== handle.token) return;
-
-  await fetch(`${url}/del/${encodeURIComponent(handle.key)}`, {
-    headers: { Authorization: `Bearer ${token}` },
-    method: "POST"
-  });
+  await evalRes.text().catch(() => "");
 }

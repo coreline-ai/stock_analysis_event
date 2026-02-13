@@ -6,9 +6,8 @@ This document defines the dashboard-facing API contract for the Research-Only GU
 
 ## Auth
 
-- Header: `x-api-token: <API_TOKEN>` (레거시 `MAHORAGA_API_TOKEN`도 호환)
+- Header: `x-api-token: <API_TOKEN>` (레거시 `DEEPSTOCK_API_TOKEN`도 호환)
 - Protected endpoints: all `/api/agent/*`
-- Cron endpoint auth: `x-cron-secret` or `Authorization: Bearer <CRON_SECRET>`
 
 ## Response Envelope
 
@@ -187,8 +186,3 @@ This document defines the dashboard-facing API contract for the Research-Only GU
   }
 }
 ```
-
-### `POST /api/cron/run`
-
-- Auth: cron secret required
-- Response: same payload shape as `/api/agent/trigger`

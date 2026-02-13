@@ -12,13 +12,13 @@ export function getAuthToken(req: NextRequest): string | null {
 }
 
 export function assertApiAuth(req: NextRequest): void {
-  const devBypass = getBooleanEnv("DEV_AUTH_BYPASS", getBooleanEnv("MAHORAGA_DEV_AUTH_BYPASS", true));
+  const devBypass = getBooleanEnv("DEV_AUTH_BYPASS", getBooleanEnv("DEEPSTOCK_DEV_AUTH_BYPASS", true));
   // In local/dev, auth can be bypassed unless explicitly disabled.
   if (process.env.NODE_ENV !== "production" && devBypass) {
     return;
   }
 
-  const expected = process.env.API_TOKEN ?? process.env.MAHORAGA_API_TOKEN;
+  const expected = process.env.API_TOKEN ?? process.env.DEEPSTOCK_API_TOKEN;
   if (!expected) {
     throw new Error("Missing required env: API_TOKEN");
   }

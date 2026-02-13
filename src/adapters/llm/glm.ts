@@ -1,5 +1,6 @@
 import { getEnv, requireEnv } from "@/config/runtime";
 import type { LLMProvider, LLMRequest } from "./provider";
+import { fetchLlmWithTimeout } from "./http";
 
 function extractContent(data: {
   choices?: Array<{ message?: { content?: string | Array<{ text?: string }> } }>;
@@ -23,7 +24,7 @@ export function createGLMProvider(): LLMProvider {
     name: "glm",
     async complete(req: LLMRequest): Promise<string> {
       const model = req.model || getEnv("GLM_MODEL", "GLM-4.6") || "GLM-4.6";
-      const res = await fetch(`${baseUrl}/chat/completions`, {
+      const res = await fetchLlmWithTimeout(`${baseUrl}/chat/completions`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

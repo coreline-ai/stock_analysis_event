@@ -11,7 +11,7 @@ export async function gatherReddit(limit = 25): Promise<SignalRaw[]> {
     const data = await fetchJson<{
       data?: { children?: Array<{ data: any }> };
     }>(`https://www.reddit.com/r/${sub}/hot.json?limit=${limit}`, {
-      headers: { "User-Agent": "mahoraga-research-only" }
+      headers: { "User-Agent": "deepstock-research-only" }
     });
     if (!data) continue;
     const posts = data.data?.children?.map((c) => c.data) ?? [];

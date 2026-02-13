@@ -1,12 +1,12 @@
 # Conceptual Schema (Draft)
-## MAHORAGA Research-Only 데이터 모델 (문서 기준 스키마)
+## DEEPSTOCK Research-Only 데이터 모델 (문서 기준 스키마)
 
 본 문서는 "DB migrations 작성 전" 단계에서
 데이터 모델을 합의/고정하기 위한 개념 스키마이다.
 
 - 컬럼/타입은 MVP 진행에 따라 변경될 수 있다.
 - 단, 엔티티의 역할/관계는 유지한다.
-- 원본 MAHORAGA(reference) 코드 분석 이후 확정한다.
+- 원본 DEEPSTOCK(reference) 코드 분석 이후 확정한다.
 
 ---
 
@@ -131,7 +131,7 @@
 
 주요 필드(개념):
 - id
-- trigger_type (cron | manual)
+- trigger_type (manual, legacy 데이터에 cron이 존재할 수 있음)
 - started_at
 - finished_at
 - status (success | partial | failed)
@@ -160,7 +160,7 @@
 
 ## 8. 다음 단계
 
-- reference/MAHORAGA-original 코드 분석을 통해
+- reference/DEEPSTOCK-original 코드 분석을 통해
   - 실제 필요한 필드
   - 필드 명칭/타입
   - 인덱스

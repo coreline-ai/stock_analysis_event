@@ -8,10 +8,9 @@ export NEXT_TELEMETRY_DISABLED=1
 export NEXT_DIST_DIR="${NEXT_DIST_DIR:-.next-dev}"
 
 # Local-friendly defaults. Production stays strict; this is just a helper script.
-export DATABASE_URL="${DATABASE_URL:-postgres://mahoraga:mahoraga@127.0.0.1:15432/mahoraga}"
-export API_TOKEN="${API_TOKEN:-${MAHORAGA_API_TOKEN:-dev-token}}"
-export MAHORAGA_API_TOKEN="${MAHORAGA_API_TOKEN:-${API_TOKEN}}"
-export CRON_SECRET="${CRON_SECRET:-dev-cron}"
+export DATABASE_URL="${DATABASE_URL:-postgres://deepstock:deepstock@127.0.0.1:15432/deepstock}"
+export API_TOKEN="${API_TOKEN:-${DEEPSTOCK_API_TOKEN:-dev-token}}"
+export DEEPSTOCK_API_TOKEN="${DEEPSTOCK_API_TOKEN:-${API_TOKEN}}"
 export LLM_PROVIDER="${LLM_PROVIDER:-glm}"
 export GEMINI_API_KEY="${GEMINI_API_KEY:-}"
 export GEMINI_BASE_URL="${GEMINI_BASE_URL:-}"

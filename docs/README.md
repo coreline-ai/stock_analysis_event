@@ -1,7 +1,7 @@
-# MAHORAGA
+# DEEPSTOCK
 ## Research-Only Signal & Timing Engine
 
-MAHORAGA는  
+DEEPSTOCK는  
 **실제 매매를 수행하지 않는 시장 시점 판단 및 리서치 엔진**입니다.
 
 이 프로젝트의 목적은  
@@ -24,13 +24,13 @@ MAHORAGA는
 - ✅ 데일리 리포트 및 히스토리
 - ✅ 대시보드 / API 제공
 
-> MAHORAGA는 **“시장 판단 엔진(Signal & Timing Engine)”**입니다.
+> DEEPSTOCK는 **“시장 판단 엔진(Signal & Timing Engine)”**입니다.
 
 ---
 
 ## 🧠 무엇을 제공하나요?
 
-MAHORAGA는 사용자가 다음 질문에 답을 얻도록 돕습니다:
+DEEPSTOCK는 사용자가 다음 질문에 답을 얻도록 돕습니다:
 
 - 지금 이 종목은 진입을 고려할 시점인가?
 - 왜 지금인가?
@@ -73,7 +73,7 @@ MAHORAGA는 사용자가 다음 질문에 답을 얻도록 돕습니다:
 
 ## 🔒 안전성 원칙 (중요)
 
-MAHORAGA는 다음을 **강제적으로 보장**합니다:
+DEEPSTOCK는 다음을 **강제적으로 보장**합니다:
 
 - 실제 매매 실행 경로 없음
 - 브로커 API 키 존재 시 시스템 부팅 실패
@@ -124,7 +124,7 @@ MAHORAGA는 다음을 **강제적으로 보장**합니다:
 
 ## 🧭 방향성 한 줄 요약
 
-> MAHORAGA는  
+> DEEPSTOCK는  
 > **“자동으로 돈을 버는 봇”이 아니라  
 > “지금이 어떤 시점인지 설명하는 시스템”**입니다.
 

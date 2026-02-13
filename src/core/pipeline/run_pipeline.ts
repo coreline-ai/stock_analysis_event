@@ -19,14 +19,14 @@ import { nowIso } from "@/core/utils/time";
 import { createLogger } from "@/core/utils/logger";
 import { sha256 } from "@/core/utils/hash";
 import type { AgentRunStatus, Decision, DailyReport, MarketScope, SignalRaw, SignalScored } from "@/core/domain/types";
-import type { PipelineAdapters, PipelineContext } from "@/core/pipeline/types";
+import type { PipelineAdapters } from "@/core/pipeline/types";
 import { createLLMProviderFromEnv } from "@/adapters/llm/factory";
 import type { LLMProviderName } from "@/adapters/llm/provider";
 import { defaultStrategyForScope, parseMarketScope, parseStrategyKey } from "@/core/pipeline/strategy_keys";
 import { normalizeKrSymbol, normalizeSymbol } from "@/core/pipeline/stages/normalize/symbol_map";
 
 export interface RunPipelineOptions {
-  triggerType: "cron" | "manual";
+  triggerType: "manual";
   marketScope?: MarketScope;
   strategyKey?: string;
   llmProviderName?: LLMProviderName | null;
@@ -67,18 +67,13 @@ export async function runPipeline(opts: RunPipelineOptions): Promise<RunPipeline
   if (!strategyKey) throw new Error("invalid_request");
   const limits = resolveStrategyLimits(strategyKey, LIMITS);
   const scoreMaxPerSymbol = Math.max(1, getNumberEnv("SCORE_MAX_PER_SYMBOL", 6));
+  const symbolRunMaxSeconds = getNumberEnv("SYMBOL_RUN_MAX_SECONDS", 90);
+  const effectiveRunMaxSeconds = targetSymbol ? Math.max(limits.runMaxSeconds, symbolRunMaxSeconds) : limits.runMaxSeconds;
+  const hardDeadlineMs = Date.now() + effectiveRunMaxSeconds * 1000;
 
   const startedAt = nowIso();
   const runId = sha256(`${startedAt}-${Math.random().toString(36).slice(2)}`);
   const logger = createLogger(runId);
-  const ctx: PipelineContext = {
-    runId,
-    startedAt,
-    marketScope,
-    strategyKey,
-    limits,
-    logger
-  };
   let status: AgentRunStatus = "success";
   let errorSummary: string | null = null;
   let lockHandle: { key: string; token: string } | null = null;
@@ -90,9 +85,15 @@ export async function runPipeline(opts: RunPipelineOptions): Promise<RunPipeline
   let decisions: Decision[] = [];
   let report: DailyReport | null = null;
   const stageTimings: Record<string, number> = {};
+  const assertWithinDeadline = () => {
+    if (Date.now() > hardDeadlineMs) {
+      throw new Error("timebox_exceeded");
+    }
+  };
 
   try {
     logger.info("pipeline_start", { triggerType: opts.triggerType, marketScope, strategyKey });
+    assertWithinDeadline();
 
     const latest = await getLatestAgentRun(marketScope);
     if (!opts.ignoreMinInterval && latest?.startedAt) {
@@ -120,7 +121,7 @@ export async function runPipeline(opts: RunPipelineOptions): Promise<RunPipeline
     }
 
     const lockAdapter = opts.adapters?.lock ?? { acquire: acquireLock, release: releaseLock };
-    lockHandle = await lockAdapter.acquire(`mahoraga:pipeline:${marketScope.toLowerCase()}`, 10 * 60 * 1000);
+    lockHandle = await lockAdapter.acquire(`deepstock:pipeline:${marketScope.toLowerCase()}`, 10 * 60 * 1000);
     if (!lockHandle) {
       status = "partial";
       errorSummary = "lock_unavailable";
@@ -141,6 +142,7 @@ export async function runPipeline(opts: RunPipelineOptions): Promise<RunPipeline
       });
       return { runId, marketScope, strategyKey, status, errorSummary, rawCount: 0, scoredCount: 0, decidedCount: 0 };
     }
+    assertWithinDeadline();
 
     const tickerStart = Date.now();
     await refreshSecTickersIfNeeded();
@@ -148,10 +150,12 @@ export async function runPipeline(opts: RunPipelineOptions): Promise<RunPipeline
       await refreshKrTickersIfNeeded();
     }
     stageTimings.ticker_cache_ms = Date.now() - tickerStart;
+    assertWithinDeadline();
 
     const gatherStart = Date.now();
     const gatherResult = await runGather(marketScope, limits);
     stageTimings.gather_ms = Date.now() - gatherStart;
+    assertWithinDeadline();
     gatheredCounts = gatherResult.counts;
     const deduped = new Map<string, SignalRaw>();
     for (const raw of gatherResult.signals) {
@@ -163,6 +167,7 @@ export async function runPipeline(opts: RunPipelineOptions): Promise<RunPipeline
     const rawInsertStart = Date.now();
     const rawWithIds: SignalRaw[] = [];
     for (const raw of rawSignals) {
+      assertWithinDeadline();
       const id = await insertSignalRaw(raw);
       rawWithIds.push({ ...raw, id });
     }
@@ -178,6 +183,7 @@ export async function runPipeline(opts: RunPipelineOptions): Promise<RunPipeline
       rawSignals = rawWithIds;
     }
     stageTimings.normalize_ms = Date.now() - normalizeStart;
+    assertWithinDeadline();
 
     const scoreStart = Date.now();
     const scored = scoreSignals(normalized).sort((a, b) => b.finalScore - a.finalScore);
@@ -197,38 +203,37 @@ export async function runPipeline(opts: RunPipelineOptions): Promise<RunPipeline
       }
       scoredSignals = capped;
     }
+    assertWithinDeadline();
 
     const scoredInsertStart = Date.now();
     scoredWithIds = [];
     for (const s of scoredSignals) {
+      assertWithinDeadline();
       const id = await insertSignalScored(s);
       scoredWithIds.push({ ...s, id });
     }
     stageTimings.scored_insert_ms = Date.now() - scoredInsertStart;
 
     const decideStart = Date.now();
-    const symbolRunMaxSeconds = getNumberEnv("SYMBOL_RUN_MAX_SECONDS", 90);
     const effectiveLimits = targetSymbol
       ? {
           ...limits,
           decideTopN: Math.max(limits.decideTopN, 20),
           llmMaxSignalsPerRun: Math.max(limits.llmMaxSignalsPerRun, 20),
           llmMaxCallsPerRun: Math.max(limits.llmMaxCallsPerRun, 2),
-          runMaxSeconds: Math.max(limits.runMaxSeconds, symbolRunMaxSeconds)
+          runMaxSeconds: effectiveRunMaxSeconds
         }
       : limits;
-    const deadlineMs = Date.now() + effectiveLimits.runMaxSeconds * 1000;
+    assertWithinDeadline();
     const llmProvider = opts.adapters?.llmProvider ?? createLLMProviderFromEnv(opts.llmProviderName);
-    decisions = await decideSignals(scoredWithIds, llmProvider, deadlineMs, { marketScope, limits: effectiveLimits });
+    decisions = await decideSignals(scoredWithIds, llmProvider, hardDeadlineMs, { marketScope, limits: effectiveLimits });
     stageTimings.decide_ms = Date.now() - decideStart;
-    if (Date.now() > deadlineMs) {
-      status = "partial";
-      errorSummary = "timebox_exceeded";
-    }
+    assertWithinDeadline();
 
     const decisionInsertStart = Date.now();
     const savedDecisions: Decision[] = [];
     for (const d of decisions) {
+      assertWithinDeadline();
       const id = await insertDecision({ ...d, marketScope });
       savedDecisions.push({ ...d, id, marketScope });
     }
@@ -236,22 +241,36 @@ export async function runPipeline(opts: RunPipelineOptions): Promise<RunPipeline
     stageTimings.decisions_insert_ms = Date.now() - decisionInsertStart;
 
     const reportStart = Date.now();
+    assertWithinDeadline();
     report = generateReport(decisions, scoredWithIds, marketScope);
     stageTimings.report_ms = Date.now() - reportStart;
     if (report) {
+      assertWithinDeadline();
       const reportInsertStart = Date.now();
       const reportId = await upsertDailyReport(report);
       report.id = reportId;
       stageTimings.report_insert_ms = Date.now() - reportInsertStart;
     }
   } catch (err) {
-    status = "failed";
-    errorSummary = err instanceof Error ? err.message : "unknown_error";
-    logger.error("pipeline_error", { error: errorSummary });
+    const message = err instanceof Error ? err.message : "unknown_error";
+    errorSummary = message;
+    if (message === "timebox_exceeded") {
+      status = "partial";
+      logger.warn("pipeline_timebox_exceeded", { runMaxSeconds: effectiveRunMaxSeconds });
+    } else {
+      status = "failed";
+      logger.error("pipeline_error", { error: errorSummary });
+    }
   } finally {
     if (lockHandle) {
       const lockAdapter = opts.adapters?.lock ?? { acquire: acquireLock, release: releaseLock };
-      await lockAdapter.release(lockHandle);
+      try {
+        await lockAdapter.release(lockHandle);
+      } catch (releaseErr) {
+        logger.warn("lock_release_error", {
+          error: releaseErr instanceof Error ? releaseErr.message : "unknown_error"
+        });
+      }
     }
   }
 

@@ -1,5 +1,6 @@
 import { getEnv, requireEnv } from "@/config/runtime";
 import type { LLMProvider, LLMRequest } from "./provider";
+import { fetchLlmWithTimeout } from "./http";
 
 interface GeminiResponse {
   candidates?: Array<{
@@ -26,7 +27,7 @@ export function createGeminiProvider(): LLMProvider {
     async complete(req: LLMRequest): Promise<string> {
       const model = req.model || getEnv("GEMINI_MODEL", "gemini-2.0-flash") || "gemini-2.0-flash";
       const endpoint = `${baseUrl}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
-      const res = await fetch(endpoint, {
+      const res = await fetchLlmWithTimeout(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"

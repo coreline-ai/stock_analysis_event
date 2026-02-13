@@ -13,6 +13,18 @@ function parseScope(value: string | null): MarketScope | undefined {
   return undefined;
 }
 
+function parseLimit(value: string | null, fallback: number, max: number): number {
+  const parsed = Number(value ?? fallback);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(1, Math.min(Math.floor(parsed), max));
+}
+
+function parseOffset(value: string | null, fallback = 0): number {
+  const parsed = Number(value ?? fallback);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(0, Math.floor(parsed));
+}
+
 export async function GET(req: NextRequest) {
   try {
     assertNoForbiddenEnv();
@@ -20,11 +32,11 @@ export async function GET(req: NextRequest) {
     const limitParam = req.nextUrl.searchParams.get("limit");
     const offsetParam = req.nextUrl.searchParams.get("offset");
     const scope = parseScope(req.nextUrl.searchParams.get("scope"));
-    const limit = limitParam ? Math.min(Number(limitParam), 300) : 100;
-    const offset = offsetParam ? Math.max(Number(offsetParam), 0) : 0;
+    const limit = parseLimit(limitParam, 100, 300);
+    const offset = parseOffset(offsetParam, 0);
 
     const [items, total] = await Promise.all([
-      listTopScored(Number.isFinite(limit) ? limit : 100, Number.isFinite(offset) ? offset : 0, scope),
+      listTopScored(limit, offset, scope),
       countScoredSignals(scope)
     ]);
     return jsonOk({

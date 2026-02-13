@@ -10,7 +10,7 @@ export async function refreshSecTickersIfNeeded(): Promise<void> {
   const data = await withRetry(
     async () => {
       const res = await fetch("https://www.sec.gov/files/company_tickers.json", {
-        headers: { "User-Agent": "mahoraga-research-only" }
+        headers: { "User-Agent": "deepstock-research-only" }
       });
       if (!res.ok) throw new Error(`sec_tickers_failed_${res.status}`);
       return (await res.json()) as Record<string, { ticker: string }>;

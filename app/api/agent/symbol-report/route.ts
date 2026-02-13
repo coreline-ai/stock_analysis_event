@@ -10,6 +10,7 @@ import { logAuthFailure } from "@/security/log";
 import type { LLMProviderName } from "@/adapters/llm/provider";
 import { defaultStrategyForScope } from "@/core/pipeline/strategy_keys";
 import { runPipeline } from "@/core/pipeline/run_pipeline";
+import { normalizeKrSymbol, normalizeSymbol } from "@/core/pipeline/stages/normalize/symbol_map";
 
 const MAX_LIMIT = 200;
 
@@ -89,11 +90,14 @@ export async function GET(req: NextRequest) {
   try {
     assertNoForbiddenEnv();
     assertApiAuth(req);
-    const symbol = (req.nextUrl.searchParams.get("symbol") ?? "").trim();
+    const rawSymbol = (req.nextUrl.searchParams.get("symbol") ?? "").trim();
+    if (!rawSymbol) return jsonError("invalid_request", 400, "invalid_request");
+
+    const scope = parseScope(req.nextUrl.searchParams.get("scope")) ?? inferScopeBySymbol(rawSymbol);
+    const symbol = scope === "KR" ? normalizeKrSymbol(rawSymbol) : normalizeSymbol(rawSymbol);
     if (!symbol) return jsonError("invalid_request", 400, "invalid_request");
 
-    const scope = parseScope(req.nextUrl.searchParams.get("scope")) ?? inferScopeBySymbol(symbol);
-    const shouldRefresh = parseBool(req.nextUrl.searchParams.get("refresh"), true);
+    const shouldRefresh = parseBool(req.nextUrl.searchParams.get("refresh"), false);
     const llmProvider = parseProvider(req.nextUrl.searchParams.get("llmProvider"));
     if (req.nextUrl.searchParams.get("llmProvider") && !llmProvider) return jsonError("invalid_request", 400, "invalid_request");
     const limit = clampLimit(req.nextUrl.searchParams.get("limit"), 60);

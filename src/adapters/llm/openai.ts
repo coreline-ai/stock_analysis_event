@@ -1,5 +1,6 @@
 import { getEnv, requireEnv } from "@/config/runtime";
 import type { LLMProvider, LLMRequest } from "./provider";
+import { fetchLlmWithTimeout } from "./http";
 
 export function createOpenAIProvider(): LLMProvider {
   const apiKey = requireEnv("OPENAI_API_KEY");
@@ -9,7 +10,7 @@ export function createOpenAIProvider(): LLMProvider {
   return {
     name: "openai",
     async complete(req: LLMRequest): Promise<string> {
-      const res = await fetch(`${baseUrl}/chat/completions`, {
+      const res = await fetchLlmWithTimeout(`${baseUrl}/chat/completions`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

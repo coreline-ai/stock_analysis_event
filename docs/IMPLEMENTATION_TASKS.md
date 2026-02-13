@@ -7,21 +7,22 @@
 ## Deepstock 리브랜딩 계획 연결
 
 - [x] 리브랜딩 전용 계획서 작성: `docs/DEEPSTOCK_REBRANDING_PLAN.md`
-- [ ] 리브랜딩 구현 진행은 위 계획서의 체크박스를 단일 기준으로 관리
+- [x] 리브랜딩 구현 진행은 위 계획서의 체크박스를 단일 기준으로 관리
+- [x] 리브랜딩 진행 상태 체크 업데이트는 `docs/DEEPSTOCK_REBRANDING_PLAN.md`에서만 수행 (본 문서는 참조 전용)
 
 ---
 
 ## 예제 코드 참조 매핑 (포팅 기준)
 
-- [x] Reddit gatherer 기준: `example/MAHORAGA-main/src/strategy/default/gatherers/reddit.ts`
-- [x] StockTwits gatherer 기준: `example/MAHORAGA-main/src/strategy/default/gatherers/stocktwits.ts`
-- [x] SEC EDGAR gatherer 기준: `example/MAHORAGA-main/src/strategy/default/gatherers/sec.ts`
-- [x] Crypto gatherer 기준: `example/MAHORAGA-main/src/strategy/default/gatherers/crypto.ts`
-- [x] Sentiment/Freshness 기준: `example/MAHORAGA-main/src/strategy/default/helpers/sentiment.ts`
-- [x] Ticker 추출/검증 기준: `example/MAHORAGA-main/src/strategy/default/helpers/ticker.ts`
-- [x] Source weight 기준: `example/MAHORAGA-main/src/strategy/default/config.ts`
-- [x] LLM 프롬프트 기준: `example/MAHORAGA-main/src/strategy/default/prompts/research.ts`
-- [x] LLM 분석 기준(참고): `example/MAHORAGA-main/src/strategy/default/prompts/analyst.ts`
+- [x] Reddit gatherer 기준: `example/DEEPSTOCK-main/src/strategy/default/gatherers/reddit.ts`
+- [x] StockTwits gatherer 기준: `example/DEEPSTOCK-main/src/strategy/default/gatherers/stocktwits.ts`
+- [x] SEC EDGAR gatherer 기준: `example/DEEPSTOCK-main/src/strategy/default/gatherers/sec.ts`
+- [x] Crypto gatherer 기준: `example/DEEPSTOCK-main/src/strategy/default/gatherers/crypto.ts`
+- [x] Sentiment/Freshness 기준: `example/DEEPSTOCK-main/src/strategy/default/helpers/sentiment.ts`
+- [x] Ticker 추출/검증 기준: `example/DEEPSTOCK-main/src/strategy/default/helpers/ticker.ts`
+- [x] Source weight 기준: `example/DEEPSTOCK-main/src/strategy/default/config.ts`
+- [x] LLM 프롬프트 기준: `example/DEEPSTOCK-main/src/strategy/default/prompts/research.ts`
+- [x] LLM 분석 기준(참고): `example/DEEPSTOCK-main/src/strategy/default/prompts/analyst.ts`
 
 ---
 
@@ -622,7 +623,7 @@
 - [x] KR 실행 시 `DART_API_KEY` 미설정이면 DART 소스만 스킵하고 파이프라인 계속 진행하도록 보강
 - [x] `signals/scored` 정렬을 하이브리드 필드 우선으로 보강 (`quant_score` null 우선순위 하향)
 - [x] GUI 품질 테스트 스크립트를 2버튼 UX(미국/한국 실행) 기준으로 갱신
-- [x] 인증/GUI 토큰 표기를 `API_TOKEN` 우선으로 전환 (레거시 `MAHORAGA_*` 호환 유지)
+- [x] 인증/GUI 토큰 표기를 `API_TOKEN` 우선으로 전환 (레거시 `DEEPSTOCK_*` 호환 유지)
 - [x] 검증 완료: `npm test`, `npm run build`, `npm run test:gui`, `POST /api/agent/trigger (KR)` 성공
 
 ---
@@ -771,3 +772,91 @@
 - [x] KR/US 스코프 전환 시 데이터/검색/차트 일관성 유지
 - [x] 문서 갱신 완료 (`docs/API_GUI_CONTRACT.md`, `docs/GUI_QUALITY_REPORT.md`, 본 문서)
 - [x] 회귀 검증 완료 (`npm test`, `npm run build`, `npm run test:gui`)
+
+---
+
+## WS-Z 런타임 안정화 핫픽스 (2026-02-13)
+
+최근 운영 리스크 리뷰에서 식별된 고우선 안정화 항목 반영.
+
+### WS-Z1 락 강제화/원자성 보강
+
+- [x] Upstash 설정 미존재 시 무락(no-lock) 진행 제거, 즉시 실패 처리
+- [x] 락 해제를 `/eval` compare-and-delete(토큰 일치 시에만 삭제)로 원자화
+- [x] 락 해제 실패가 파이프라인 본 실행 결과를 덮어쓰지 않도록 방어 처리
+- [x] Upstash 실환경 E2E 스모크 스크립트 추가 (`scripts/lock_e2e_smoke.ts`)
+- [x] E2E 실행 커맨드 추가 (`npm run test:lock:e2e`)
+- [x] 락 문서 갱신 (`docs/LOCKING.md`)
+
+### WS-Z2 timeout/timebox 강화
+
+- [x] Gather 공통 fetch timeout 도입 (`GATHER_FETCH_TIMEOUT_MS`, 기본 8000ms)
+- [x] LLM 공통 fetch timeout 도입 (`LLM_FETCH_TIMEOUT_MS`, 기본 25000ms)
+- [x] OpenAI/GLM/Gemini provider에 timeout fetch 적용
+- [x] 파이프라인 전체 단계에 hard deadline 체크 적용 (gather~persist 루프 포함)
+- [x] hard deadline 초과 시 `partial(timebox_exceeded)`로 기록
+
+### WS-Z3 API 일관성/입력 가드 보강
+
+- [x] `symbol-report` 기본 `refresh=false` 전환
+- [x] `symbol-report` 심볼 정규화 후 조회/온디맨드 실행 적용
+- [x] list API `limit` 하한(`>=1`) 강제 및 정수화 적용
+- [x] list API `offset` 정수/하한(`>=0`) 강제
+
+### WS-Z4 후속 정합성 작업
+
+- [ ] cron scope `ALL` 설정 시 `KR` 강제 축소 제거(스케줄/수동 실행 동작 정합화) ※ 보류: WS-Z5(크론 제거/수동 전용 전환)로 대체 진행
+
+검증 로그 (2026-02-13):
+- `npm test` 통과
+- `npx tsc --noEmit` 통과
+- `npm run test:lock:e2e` 실행 시 Upstash env 미설정 가드(`Missing required env: UPSTASH_REDIS_REST_URL`) 확인
+
+### WS-Z5 cron 기능 제거 + 수동 트리거 전용 전환 계획
+
+목표: 스케줄(cron) 실행 경로를 제거하고, 대시보드 사용자 버튼 트리거만으로 분석 실행.
+
+#### Z5-1 API/보안 계층 정리
+
+- [x] `app/api/cron/run/route.ts` 제거
+- [x] `src/security/cron_auth.ts` 제거 및 참조 정리
+- [x] cron 관련 에러/로그 경로 정리 (`/api/cron/run`)
+- [x] cron endpoint 삭제에 따른 라우트 문서/API 계약 갱신
+
+#### Z5-2 런타임/환경변수 정리
+
+- [x] `.env.example`에서 cron 전용 변수(`CRON_SECRET`, `CRON_MARKET_SCOPE`) 제거 또는 deprecated 표기
+- [x] `docs/PROD_DEPLOYMENT.md`의 Vercel Cron 설정 가이드 제거
+- [x] `vercel.json` cron 관련 설정 제거(존재 시)
+- [x] `DEFAULT_MARKET_SCOPE`는 수동 실행 기본값으로만 유지
+
+#### Z5-3 GUI/UX 전환
+
+- [x] 대시보드 실행 버튼(미국/한국) 중심 운영 플로우 문구로 통일
+- [x] 설정 페이지에서 cron 관련 안내 제거
+- [x] 실행 이력 화면에서 triggerType `cron` 레거시 데이터 표기 정책 정의(읽기 전용 유지)
+
+#### Z5-4 테스트/검증
+
+- [x] `POST /api/cron/run` 404(또는 제거 상태) 확인
+- [x] 수동 트리거(`POST /api/agent/trigger`)만으로 기존 분석 플로우 정상 동작 확인
+- [x] `npm test`, `npm run build`, `npm run test:gui` 회귀 통과
+- [x] 운영 문서/체크리스트에서 cron 의존 항목 0건 확인
+
+검증 로그 (2026-02-13, WS-Z5):
+- `npm test` 통과
+- `npm run build` 통과 (`/api/cron/run` 라우트 미노출 확인)
+- `npx tsc --noEmit` 통과
+
+추가 검증 로그 (2026-02-13, WS-Z5 manual-only):
+- `POST /api/agent/trigger` 직접 호출 시 API 경로 정상 응답 확인, 단 DB 미연결로 `db_error(connect ECONNREFUSED 127.0.0.1:15432)` 반환
+- `npm run test:gui` 실행 시 E2E 수동 실행 토스트 대기 타임아웃으로 실패 (`scripts/gui_quality_check.ts`, DB 미연결 환경 영향)
+- `npm run db:up` 시 Docker daemon 미기동으로 실패 (`Cannot connect to the Docker daemon`)
+
+재검증 로그 (2026-02-13, WS-Z5 manual-only):
+- `colima start`로 Docker daemon 기동
+- `npm run db:up` 성공, `DATABASE_URL=postgres://deepstock:deepstock@127.0.0.1:15432/deepstock npm run db:migrate` 성공
+- `POST /api/agent/trigger` 호출 성공 (`ok=true`, `status=partial`, `rawCount=37`, `scoredCount=17`, `decidedCount=3`)
+- `npm test` 통과
+- `npm run build` 통과
+- `npm run test:gui` 통과 (`[gui] done chromium_violations=3 webkit_violations=3`)

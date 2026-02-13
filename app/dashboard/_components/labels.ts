@@ -22,10 +22,10 @@ export function runStatusLabel(status?: AgentRunStatus | string | null): string 
   return status;
 }
 
-export function triggerLabel(trigger?: "manual" | "cron" | string | null): string {
+export function triggerLabel(trigger?: "manual" | string | null): string {
   if (!trigger) return "-";
   if (trigger === "manual") return "수동";
-  if (trigger === "cron") return "스케줄";
+  if (trigger === "cron") return "스케줄(레거시)";
   return trigger;
 }
 

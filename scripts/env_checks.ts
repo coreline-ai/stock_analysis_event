@@ -8,8 +8,8 @@ function testForbidden() {
 }
 
 function testMissingEnv() {
-  delete process.env.MAHORAGA_API_TOKEN;
-  assert.throws(() => requireEnv("MAHORAGA_API_TOKEN"));
+  delete process.env.DEEPSTOCK_API_TOKEN;
+  assert.throws(() => requireEnv("DEEPSTOCK_API_TOKEN"));
 }
 
 function run() {

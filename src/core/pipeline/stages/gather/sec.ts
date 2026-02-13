@@ -49,7 +49,7 @@ async function resolveTickerFromCompany(company: string): Promise<string | null>
   try {
     const data = await fetchJson<Record<string, { ticker: string; title: string }>>(
       "https://www.sec.gov/files/company_tickers.json",
-      { headers: { "User-Agent": "mahoraga-research-only" } }
+      { headers: { "User-Agent": "deepstock-research-only" } }
     );
     if (!data) return null;
 
@@ -73,7 +73,7 @@ export async function gatherSecEdgar(limit = 20): Promise<SignalRaw[]> {
     "https://www.sec.gov/cgi-bin/browse-edgar?action=getcurrent&type=8-K&company=&dateb=&owner=include&count=40&output=atom",
     {
       headers: {
-        "User-Agent": "mahoraga-research-only",
+        "User-Agent": "deepstock-research-only",
         Accept: "application/atom+xml"
       }
     }

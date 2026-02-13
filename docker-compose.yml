@@ -3,13 +3,13 @@ services:
     image: postgres:16
     restart: unless-stopped
     environment:
-      POSTGRES_USER: mahoraga
-      POSTGRES_PASSWORD: mahoraga
-      POSTGRES_DB: mahoraga
+      POSTGRES_USER: deepstock
+      POSTGRES_PASSWORD: deepstock
+      POSTGRES_DB: deepstock
     ports:
       - "15432:5432"
     volumes:
-      - mahoraga_pg:/var/lib/postgresql/data
+      - deepstock_pg:/var/lib/postgresql/data
 
 volumes:
-  mahoraga_pg:
+  deepstock_pg:

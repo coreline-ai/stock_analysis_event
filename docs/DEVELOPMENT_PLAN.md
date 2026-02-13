@@ -1,4 +1,4 @@
-# MAHORAGA Research-Only (Vercel) 개발 계획
+# DEEPSTOCK Research-Only (Vercel) 개발 계획
 ## Implementation Plan (Milestones / PR Breakdown / Checklist)
 
 ---
@@ -7,8 +7,8 @@
 
 본 개발 계획은 다음을 전제로 한다:
 
-- 대상: 기존 MAHORAGA를 리팩토링하여 Research-Only Signal & Timing Engine으로 전환
-- 배포: Vercel (프론트 + API Routes + Cron)
+- 대상: 기존 DEEPSTOCK를 리팩토링하여 Research-Only Signal & Timing Engine으로 전환
+- 배포: Vercel (프론트 + API Routes, 수동 트리거 전용)
 - 금지: 실제 매매 자동화(주문 실행)는 어떤 형태로도 포함하지 않음
 - 목표: “지금 사야 할 시점(BUY_NOW 등)” 판단 + 근거 + 리포트 + 대시보드 제공
 
@@ -22,7 +22,7 @@
 - M1: 데이터 모델/저장소/인증 토큰 기반 API 뼈대
 - M2: Gather + Normalize + Score 파이프라인 이식
 - M3: Decision Engine(LLM) + 스키마 검증 + 저장
-- M4: Cron Runner + Lock + 타임박스 + 비용상한
+- M4: Manual Trigger Runner + Lock + 타임박스 + 비용상한
 - M5: 대시보드(UI) + 운영 관측 + 안정화
 
 ---
@@ -53,17 +53,16 @@
 ### PR-002: 인증(토큰) 미들웨어 + 보안 스캐폴딩
 목표:
 - 외부 호출 엔드포인트 보호
-- Cron 호출 보호 기반 마련
+- 수동 트리거 호출 보호 기반 마련
 
 작업:
 - API 토큰 검증 유틸 구현
-- CRON_SECRET 검증 유틸 구현
 - 인증 실패 시 표준 에러 응답 정의
 
 완료 기준(DoD):
 - 토큰 없으면 401
 - 토큰 있으면 정상
-- Cron 엔드포인트는 CRON_SECRET 없으면 401
+- 수동 트리거 엔드포인트는 토큰 없으면 401
 
 ---
 
@@ -107,7 +106,7 @@
 
 ### PR-005: Core Pipeline 골격 분리 (플랫폼 독립 영역)
 목표:
-- 기존 MAHORAGA 로직을 “Core Pipeline”로 분리할 틀 마련
+- 기존 DEEPSTOCK 로직을 “Core Pipeline”로 분리할 틀 마련
 
 작업:
 - src/core/pipeline.ts 생성
@@ -206,21 +205,21 @@
 
 ---
 
-### PR-011: Cron Runner 엔드포인트 + 타임박스 + 비용 상한
+### PR-011: Manual Trigger 엔드포인트 + 타임박스 + 비용 상한
 목표:
-- 주기 실행 자동화 완성
+- 수동 실행 경로 완성
 - 서버리스 시간 제한 고려
 
 작업:
-- /api/cron/run 엔드포인트 구현
-- CRON_SECRET 검증
+- /api/agent/trigger 엔드포인트 구현/강화
+- API 토큰 검증
 - 락 획득 후 실행
 - 타임박스: 최대 처리량 N, 최대 실행 단계 제한
 - 비용 상한: 실행당 LLM 호출 수 제한
 - agent_runs에 실행 결과 기록
 
 완료 기준(DoD):
-- Cron 호출로 gather→score→decide→report가 실행됨
+- 사용자 트리거 호출로 gather→score→decide→report가 실행됨
 - 중복 실행 방지 동작
 - 시간/비용 제한 초과 시 graceful stop + 기록
 
@@ -294,8 +293,7 @@
 
 - DATABASE_URL
 - LLM_API_KEY (공급자에 맞는 키)
-- MAHORAGA_API_TOKEN
-- CRON_SECRET
+- DEEPSTOCK_API_TOKEN
 - REDIS_URL / REDIS_TOKEN (또는 Upstash 주입 값)
 
 금지(존재하면 실패):
@@ -307,7 +305,7 @@
 
 MVP는 다음이 완료되면 달성으로 본다:
 
-- 주기 실행(Cron)으로 하루 최소 1회 파이프라인 수행
+- 사용자 수동 트리거로 필요 시 파이프라인 수행
 - signals_raw와 signals_scored 저장
 - BUY_NOW/WATCH/AVOID decisions 생성 및 저장
 - daily_reports 생성 및 저장
@@ -344,5 +342,4 @@ MVP는 다음이 완료되면 달성으로 본다:
 - PR-001부터 순서대로 진행
 - PR-003(DB)와 PR-004(Redis)는 병렬 가능
 - PR-006~PR-010은 파이프라인 구현 단계로 집중
-- PR-011에서 자동화(크론) 완성 후 UI로 이동
-
+- PR-011에서 수동 트리거 경로 완성 후 UI로 이동

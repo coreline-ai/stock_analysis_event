@@ -1,4 +1,4 @@
-# MAHORAGA Research-Only 전환 PRD
+# DEEPSTOCK Research-Only 전환 PRD
 ## Signal & Timing Engine 제품 요구사항 문서
 
 ---
@@ -6,12 +6,12 @@
 ## 0. 문서의 목적
 
 본 문서는  
-**MAHORAGA 리팩토링 기획서**를 기반으로 작성된  
+**DEEPSTOCK 리팩토링 기획서**를 기반으로 작성된  
 **제품 요구사항 문서(Product Requirements Document, PRD)**이다.
 
 이 문서는 다음 질문에 답한다:
 
-- 리팩토링 이후 MAHORAGA는 사용자에게 무엇을 제공해야 하는가
+- 리팩토링 이후 DEEPSTOCK는 사용자에게 무엇을 제공해야 하는가
 - 어떤 기능이 반드시 있어야 하는가
 - 어떤 기능은 범위에서 제외되는가
 
@@ -24,7 +24,7 @@
 
 ### 1.1 제품 정의
 
-MAHORAGA Research-Only 버전은  
+DEEPSTOCK Research-Only 버전은  
 **실제 매매를 수행하지 않는 시장 시점 판단 및 리서치 엔진**이다.
 
 본 제품은 사용자가 다음 질문에 답을 얻도록 돕는다:

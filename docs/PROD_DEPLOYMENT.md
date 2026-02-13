@@ -4,8 +4,7 @@
 
 ## 1) 필수 환경 변수
 
-- `API_TOKEN` (또는 레거시 `MAHORAGA_API_TOKEN`)
-- `CRON_SECRET`
+- `API_TOKEN` (또는 레거시 `DEEPSTOCK_API_TOKEN`)
 - `DATABASE_URL`
 - `LLM_PROVIDER` (`glm` 권장)
 - `GLM_API_KEY` (또는 `OPENAI_API_KEY`)
@@ -47,32 +46,25 @@
 2. 환경 변수 등록
 3. 빌드/배포 실행
 4. `/api/health` 확인
+5. 분석 실행은 대시보드 또는 `POST /api/agent/trigger` 수동 호출로만 수행
 
-## 4) Cron 설정 (Vercel)
-
-- 경로: `/api/cron/run`
-- 헤더: `x-cron-secret: <CRON_SECRET>`
-
-예시 스케줄:
-- 매 10분: `*/10 * * * *`
-
-## 5) DB 마이그레이션
+## 4) DB 마이그레이션
 
 - `db/migrations/001_init.sql`과 `db/migrations/002_market_scope.sql`을 운영 DB에 적용
 
-## 6) 운영 확인
+## 5) 운영 확인
 
 - `/api/agent/status` 정상 응답
 - `/api/agent/decisions` 정상 응답
 - `/api/agent/reports` 정상 응답
 
-## 7) 운영 주의사항
+## 6) 운영 주의사항
 
 - `LLM_PROVIDER=stub`는 운영에서 사용하지 않는다.
 - GLM 사용 시 `GLM_BASE_URL`, `GLM_MODEL`, `GLM_TEMPERATURE`, `GLM_THINKING_TYPE=disabled`를 명시한다.
 - 비용 제한(`LLM_MAX_*`)을 반드시 설정한다.
 
-## 8) 배포 전 점검
+## 7) 배포 전 점검
 
 - `npm test`
 - `npx tsx scripts/env_checks.ts`

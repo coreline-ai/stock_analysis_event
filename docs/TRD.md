@@ -1,4 +1,4 @@
-# MAHORAGA Research-Only 전환 TRD
+# DEEPSTOCK Research-Only 전환 TRD
 ## Technical Requirements & Design Document
 
 ---
@@ -6,7 +6,7 @@
 ## 0. 문서 목적
 
 본 문서는  
-**MAHORAGA 리팩토링 기획서** 및 **PRD**를 기술적으로 구현하기 위한  
+**DEEPSTOCK 리팩토링 기획서** 및 **PRD**를 기술적으로 구현하기 위한  
 **기술 설계 문서(TRD)**이다.
 
 이 문서는 다음을 정의한다:
@@ -281,7 +281,7 @@
 
 ## 11. 최종 요약
 
-- MAHORAGA는 Research-Only 시점 판단 엔진으로 재구성된다
+- DEEPSTOCK는 Research-Only 시점 판단 엔진으로 재구성된다
 - 기술 구조는 플랫폼 독립 Core + 실행 환경 Adapter 구조를 따른다
 - 매매 실행은 기술적으로 차단된다
 - 본 TRD는 이후 개발 계획의 기준점이다

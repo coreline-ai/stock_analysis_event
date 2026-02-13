@@ -113,7 +113,8 @@ export type AgentRunStatus = "success" | "partial" | "failed";
 
 export interface AgentRun {
   id?: string;
-  triggerType: "cron" | "manual";
+  // New writes are manual-only. Legacy DB rows may still contain historical values (e.g. cron).
+  triggerType: string;
   marketScope?: MarketScope;
   strategyKey?: string;
   startedAt: string;

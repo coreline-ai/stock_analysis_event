@@ -38,7 +38,7 @@ function ShellInner({ children }: { children: React.ReactNode }) {
     return {
       unauthorized: "인증 실패: 운영 환경에서는 API_TOKEN 설정 및 전달이 필요합니다.",
       invalid_request: "요청 파라미터가 올바르지 않습니다. 시장 스코프/전략 키를 확인하세요.",
-      missing_env: "필수 환경변수가 누락되었습니다. DATABASE_URL / CRON_SECRET를 확인하세요.",
+      missing_env: "필수 환경변수가 누락되었습니다. DATABASE_URL / LLM_PROVIDER를 확인하세요.",
       forbidden_env: "금지된 거래 관련 환경변수가 감지되었습니다. 브로커/거래 키를 제거하세요.",
       db_error: "데이터베이스 연결 또는 쿼리에 실패했습니다. Postgres와 마이그레이션을 확인하세요.",
       unknown_error: "알 수 없는 오류가 발생했습니다. 서버 로그를 확인하세요."

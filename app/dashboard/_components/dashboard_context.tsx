@@ -24,8 +24,8 @@ interface DashboardContextValue {
   toasts: ToastMessage[];
 }
 
-const TOKEN_KEY = "api_token";
-const LEGACY_TOKEN_KEY = "mahoraga_api_token";
+const TOKEN_KEY = "deepstock_api_token";
+const FALLBACK_TOKEN_KEY = "api_token";
 const LLM_PROVIDER_KEY = "dashboard_llm_provider";
 
 const DashboardContext = createContext<DashboardContextValue | null>(null);
@@ -39,7 +39,9 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
   useEffect(() => {
-    const stored = window.sessionStorage.getItem(TOKEN_KEY) ?? window.sessionStorage.getItem(LEGACY_TOKEN_KEY);
+    const stored =
+      window.sessionStorage.getItem(TOKEN_KEY) ??
+      window.sessionStorage.getItem(FALLBACK_TOKEN_KEY);
     if (stored) setTokenState(stored);
     const savedProvider = (window.sessionStorage.getItem(LLM_PROVIDER_KEY) ?? "").toLowerCase();
     if (savedProvider === "glm" || savedProvider === "openai" || savedProvider === "gemini") {
@@ -52,11 +54,11 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     if (!loaded) return;
     if (!token) {
       window.sessionStorage.removeItem(TOKEN_KEY);
-      window.sessionStorage.removeItem(LEGACY_TOKEN_KEY);
+      window.sessionStorage.removeItem(FALLBACK_TOKEN_KEY);
       return;
     }
     window.sessionStorage.setItem(TOKEN_KEY, token);
-    window.sessionStorage.setItem(LEGACY_TOKEN_KEY, token);
+    window.sessionStorage.setItem(FALLBACK_TOKEN_KEY, token);
   }, [loaded, token]);
 
   useEffect(() => {
