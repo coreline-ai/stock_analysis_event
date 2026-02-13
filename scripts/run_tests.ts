@@ -4,6 +4,7 @@ import { detectSentimentKr } from "@/core/pipeline/stages/score/sentiment_kr";
 import { calculateFreshness } from "@/core/pipeline/stages/score/freshness";
 import { extractTickerCandidates, normalizeKrSymbol, normalizeSymbol } from "@/core/pipeline/stages/normalize/symbol_map";
 import { extractKrTickerCandidatesByName } from "@/core/pipeline/stages/normalize/kr_ticker_cache";
+import { computeKrQuoteSnapshot } from "@/core/pipeline/stages/normalize/kr_quote_enrichment";
 import { parseRssItems } from "@/core/pipeline/stages/gather/news";
 import { parseAtom } from "@/core/pipeline/stages/gather/sec";
 import { buildGatherTasks, runGather } from "@/core/pipeline/stages/gather";
@@ -74,6 +75,16 @@ function testKrMarketMetaExtraction() {
   assert.equal(meta.price_above_ma20, 0);
   assert.ok(Number(meta.foreign_net_buy) > 0);
   assert.ok(Number(meta.institution_net_buy) < 0);
+}
+
+function testKrQuoteSnapshotComputation() {
+  const closes = [100, 101, 102, 103, 104, 106, 108, 109, 111, 112, 113, 114, 116, 117, 118, 119, 121, 123, 124, 125, 127];
+  const volumes = [1000, 1050, 980, 1020, 1000, 990, 1010, 1030, 1040, 1000, 1020, 1030, 1010, 1025, 1045, 1035, 1050, 1060, 1070, 1080, 2200];
+  const snapshot = computeKrQuoteSnapshot(closes, volumes);
+  assert.ok(snapshot);
+  assert.ok((snapshot?.volumeRatio ?? 0) > 1.5);
+  assert.equal(snapshot?.priceAboveMa5, 1);
+  assert.equal(snapshot?.priceAboveMa20, 1);
 }
 
 function testRssParse() {
@@ -410,6 +421,7 @@ async function run() {
   testKrTickerNameExtract();
   testKrSymbolNormalizationCompat();
   testKrMarketMetaExtraction();
+  testKrQuoteSnapshotComputation();
   testRssParse();
   testAtomParse();
   testScoring();

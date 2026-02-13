@@ -29,6 +29,7 @@ export interface SignalRaw {
 
 export interface SignalScored {
   id?: string;
+  runRef?: string;
   rawId: string;
   symbol: string;
   sentimentScore: number;
@@ -58,6 +59,7 @@ export type DecisionVerdict = "BUY_NOW" | "WATCH" | "AVOID";
 
 export interface Decision {
   id?: string;
+  runRef?: string;
   symbol: string;
   marketScope?: MarketScope;
   verdict: DecisionVerdict;

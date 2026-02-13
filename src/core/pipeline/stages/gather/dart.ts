@@ -111,7 +111,7 @@ async function gatherDartNewsFallback(limit: number): Promise<SignalRaw[]> {
 
 export async function gatherDart(limit = 20): Promise<SignalRaw[]> {
   const key = getEnv("DART_API_KEY");
-  const fallbackEnabled = getBooleanEnv("DART_NEWS_FALLBACK_ENABLED", true);
+  const fallbackEnabled = getBooleanEnv("DART_NEWS_FALLBACK_ENABLED", false);
   if (!key) {
     return fallbackEnabled ? gatherDartNewsFallback(limit) : [];
   }

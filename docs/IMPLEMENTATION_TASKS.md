@@ -860,3 +860,59 @@
 - `npm test` 통과
 - `npm run build` 통과
 - `npm run test:gui` 통과 (`[gui] done chromium_violations=3 webkit_violations=3`)
+
+---
+
+## WS-Q1 추천 정확도 정밀 개선 (2026-02-13)
+
+목표: KR 추천 결과의 `AVOID` 편향을 완화하고, 수집/스코어링/추적 가능성을 동시에 개선.
+
+### Q1-1 진단 기반 상세 계획
+
+- [x] 실데이터 품질 병목(소스별 심볼 커버리지/메타데이터 결손/0점 비율) 재계측 스크립트 고정
+- [x] 개선 항목을 코드/DB/검증 단위 체크리스트로 분해
+- [x] 완료 즉시 본 섹션 체크박스 `[x]` 반영
+
+### Q1-2 파이프라인 추적성 강화(run 단위)
+
+- [x] `signals_scored`, `decisions`에 파이프라인 실행 추적 키(`run_ref`) 추가
+- [x] 저장/조회 모델에 `runRef` 반영
+- [x] `run_pipeline`에서 점수/판단 저장 시 `runRef` 연결
+
+### Q1-3 KR 메타데이터 실측 보강
+
+- [x] KR 심볼별 가격/거래량 시계열 기반 보강 모듈 추가 (MA5/MA20/거래량 배수)
+- [x] normalize 이후 KR 시그널에 보강 메타데이터 주입 단계 추가
+- [x] 단계 타이밍(`kr_quote_enrich_ms`) 기록 및 hard deadline 연동
+
+### Q1-4 스코어링 변별력 개선
+
+- [x] KR 최종 점수에서 `sentiment=0` 고착 완화(중립 감성 반영)
+- [x] KR `quantScore` 직접 반영 비중 확대(승수 의존도 완화)
+- [x] 하드필터 임계값 현실화(`flow/technical` 관문 재조정)
+- [x] 리스크 점수 편중 완화(비정상 패턴 페널티 보강)
+
+### Q1-5 저품질 소스 노이즈 억제
+
+- [x] DART 키 미설정 환경의 fallback 기본 동작을 보수 모드로 전환
+- [x] 소스별 품질 지표(심볼 미검출/본문 결손) 재측정 및 회귀 확인
+
+### Q1-6 테스트/검증/문서화
+
+- [x] 단위 테스트 보강(메타 보강 계산/스코어링 회귀)
+- [x] `npm test`, `npx tsc --noEmit` 통과
+- [x] DB 마이그레이션 적용 및 런타임 스모크 검증
+- [x] 개선 전후 핵심 지표 비교 로그를 본 문서에 기록
+
+검증 로그 (2026-02-13, WS-Q1):
+- `npm run db:migrate` 적용: `007_pipeline_run_ref.sql`
+- `npm run diagnose:quality` (개선 전): `avg_final_score=0.0422`, `final_zero_pct=75.16`, `hard_pass_pct=0.00`, `verdict={"AVOID":24}`
+- KR 수동 실행 스모크: `runPipeline(marketScope=KR, strategyKey=kr_default, ignoreMinInterval=true)` 성공  
+  `runId=1ac806cb66d1febe525d0ff5d46f9e6e351357ebc6216ee25bc566d1243901c1`, `rawCount=110`, `scoredCount=50`, `decidedCount=6`
+- 최신 실행 단계 타이밍 확인: `kr_quote_enrich_ms=6228`, `kr_quote_persist_ms=31` (enrich+raw_payload 반영 확인)
+- `npm run diagnose:quality` (개선 후):  
+  전체 누적 `avg_final_score=0.0676`, `final_zero_pct=45.45`, `hard_pass_pct=15.42`, `verdict={"AVOID":25,"WATCH":10}`  
+  KR 메타 커버리지 `volume_ratio=78.26%`, `ma5=78.26%`, `ma20=78.26%`  
+  최신 `run_ref` 단위 `avg_final_score=0.1071`, `final_zero_pct=0.00`, `hard_pass_pct=44.00`
+- `npm test` 통과
+- `npx tsc --noEmit` 통과

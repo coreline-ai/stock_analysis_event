@@ -103,13 +103,15 @@ function computeSocialScore(item: NormalizedSignal, text: string, sentimentScore
   return clamp01(sourceBoost + sentimentBoost + Math.min(0.35, socialHits * 0.15));
 }
 
-function computeContextRiskScore(text: string, flowScore: number, technicalScore: number): number {
+function computeContextRiskScore(text: string, volumeScore: number, flowScore: number, technicalScore: number): number {
   const overheatedHints = hasAny(text, ["52주 고점", "과열", "급등 피로", "고평가"]);
   const overheatByPercent = extractPercentRatio(text) >= 0.9 && text.includes("고점") ? 1 : 0;
-  const flowRisk = flowScore < 0.35 ? 0.45 : 0;
-  const technicalRisk = technicalScore < 0.35 ? 0.35 : 0;
+  const flowRisk = flowScore < 0.45 ? 0.35 : 0;
+  const technicalRisk = technicalScore < 0.4 ? 0.3 : 0;
+  const bubbleRisk = volumeScore >= 0.85 && flowScore <= 0.45 ? 0.22 : 0;
+  const divergenceRisk = technicalScore < 0.4 && flowScore < 0.45 ? 0.18 : 0;
   const lexicalRisk = Math.min(0.55, overheatedHints * 0.18 + overheatByPercent * 0.35);
-  return clamp01(Math.max(lexicalRisk, flowRisk + technicalRisk));
+  return clamp01(Math.max(lexicalRisk, flowRisk + technicalRisk, bubbleRisk + divergenceRisk));
 }
 
 export function analyzeKrQuantSignal(item: NormalizedSignal, sentimentScore: number): KrQuantAnalysis {
@@ -121,7 +123,7 @@ export function analyzeKrQuantSignal(item: NormalizedSignal, sentimentScore: num
   const volumeScore = computeVolumeScore(text, meta);
   const flowScore = computeFlowScore(text, meta);
   const technicalScore = computeTechnicalScore(text, meta);
-  const contextRiskScore = computeContextRiskScore(text, flowScore, technicalScore);
+  const contextRiskScore = computeContextRiskScore(text, volumeScore, flowScore, technicalScore);
 
   const quantScore = clamp01(volumeScore * 0.45 + flowScore * 0.35 + technicalScore * 0.2);
   const tripleCrownComposite = clamp01(socialScore * 0.35 + eventScore * 0.25 + quantScore * 0.4);
@@ -132,8 +134,8 @@ export function analyzeKrQuantSignal(item: NormalizedSignal, sentimentScore: num
   const socialLayerPassed = socialScore >= 0.7;
   const eventLayerPassed = eventScore >= 0.5;
   const volumeGuardPassed = volumeScore >= 0.75;
-  const flowGuardPassed = flowScore >= 0.6;
-  const technicalGuardPassed = technicalScore >= 0.55;
+  const flowGuardPassed = flowScore >= 0.5;
+  const technicalGuardPassed = technicalScore >= 0.5;
   const hardFilterPassed = volumeGuardPassed && flowGuardPassed && technicalGuardPassed;
   const tripleCrownPassed = socialLayerPassed && eventLayerPassed && hardFilterPassed;
 

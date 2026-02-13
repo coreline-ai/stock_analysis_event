@@ -8,6 +8,7 @@ export async function insertSignalScored(signal: SignalScored): Promise<string> 
     `
     INSERT INTO signals_scored
       (
+        run_ref,
         raw_id, symbol, sentiment_score, freshness_score, source_weight, final_score,
         social_score, event_score, volume_score, flow_score, technical_score, quant_score, context_risk_score, quant_multiplier,
         social_layer_passed, event_layer_passed, volume_guard_passed, flow_guard_passed, technical_guard_passed, triple_crown_passed, hard_filter_passed,
@@ -15,14 +16,15 @@ export async function insertSignalScored(signal: SignalScored): Promise<string> 
       )
     VALUES
       (
-        $1,$2,$3,$4,$5,$6,
-        $7,$8,$9,$10,$11,$12,$13,$14,
-        $15,$16,$17,$18,$19,$20,$21,
-        $22,$23
+        $1,$2,$3,$4,$5,$6,$7,
+        $8,$9,$10,$11,$12,$13,$14,$15,
+        $16,$17,$18,$19,$20,$21,$22,
+        $23,$24
       )
     RETURNING id
     `,
     [
+      signal.runRef ?? null,
       signal.rawId,
       signal.symbol,
       signal.sentimentScore,
@@ -63,6 +65,7 @@ export async function listTopScored(limit = 50, offset = 0, scope?: MarketScope)
   return query<SignalScored>(
     `SELECT
       s.id,
+      s.run_ref as "runRef",
       s.raw_id as "rawId",
       s.symbol,
       s.sentiment_score as "sentimentScore",
@@ -156,6 +159,7 @@ export async function listScoredSignalsBySymbol(
   return query<SignalScored>(
     `SELECT
       s.id,
+      s.run_ref as "runRef",
       s.raw_id as "rawId",
       s.symbol,
       s.sentiment_score as "sentimentScore",

@@ -3,12 +3,13 @@ import { LIMITS } from "@/config/limits";
 import { resolveStrategyLimits } from "@/config/strategy_limits";
 import { runGather } from "@/core/pipeline/stages/gather";
 import { normalizeSignals } from "@/core/pipeline/stages/normalize";
+import { enrichKrNormalizedSignals } from "@/core/pipeline/stages/normalize/kr_quote_enrichment";
 import { scoreSignals } from "@/core/pipeline/stages/score";
 import { decideSignals } from "@/core/pipeline/stages/decide";
 import { generateReport } from "@/core/pipeline/stages/report";
 import { refreshSecTickersIfNeeded } from "@/core/pipeline/stages/normalize/ticker_cache";
 import { refreshKrTickersIfNeeded } from "@/core/pipeline/stages/normalize/kr_ticker_cache";
-import { insertSignalRaw } from "@/adapters/db/repositories/signals_raw_repo";
+import { insertSignalRaw, mergeRawPayloadById } from "@/adapters/db/repositories/signals_raw_repo";
 import { insertSignalScored } from "@/adapters/db/repositories/signals_scored_repo";
 import { insertDecision } from "@/adapters/db/repositories/decisions_repo";
 import { upsertDailyReport } from "@/adapters/db/repositories/daily_reports_repo";
@@ -185,6 +186,36 @@ export async function runPipeline(opts: RunPipelineOptions): Promise<RunPipeline
     stageTimings.normalize_ms = Date.now() - normalizeStart;
     assertWithinDeadline();
 
+    if (marketScope === "KR" || marketScope === "ALL") {
+      const enrichStart = Date.now();
+      normalized = await enrichKrNormalizedSignals(normalized, hardDeadlineMs);
+      stageTimings.kr_quote_enrich_ms = Date.now() - enrichStart;
+      assertWithinDeadline();
+
+      const persistStart = Date.now();
+      const payloadByRawId = new Map<string, Record<string, unknown>>();
+      for (const item of normalized) {
+        if (!item.rawId) continue;
+        const metadata = item.metadata ?? {};
+        const patch: Record<string, unknown> = {};
+        const volumeRatio = Number(metadata["volume_ratio"]);
+        const ma5 = Number(metadata["price_above_ma5"]);
+        const ma20 = Number(metadata["price_above_ma20"]);
+        if (Number.isFinite(volumeRatio) && volumeRatio > 0) patch.volume_ratio = volumeRatio;
+        if (Number.isFinite(ma5)) patch.price_above_ma5 = ma5 >= 0.5 ? 1 : 0;
+        if (Number.isFinite(ma20)) patch.price_above_ma20 = ma20 >= 0.5 ? 1 : 0;
+        if (Object.keys(patch).length === 0) continue;
+        const prev = payloadByRawId.get(item.rawId) ?? {};
+        payloadByRawId.set(item.rawId, { ...prev, ...patch });
+      }
+      for (const [rawId, payload] of payloadByRawId.entries()) {
+        assertWithinDeadline();
+        await mergeRawPayloadById(rawId, payload);
+      }
+      stageTimings.kr_quote_persist_ms = Date.now() - persistStart;
+      assertWithinDeadline();
+    }
+
     const scoreStart = Date.now();
     const scored = scoreSignals(normalized).sort((a, b) => b.finalScore - a.finalScore);
     stageTimings.score_ms = Date.now() - scoreStart;
@@ -209,8 +240,9 @@ export async function runPipeline(opts: RunPipelineOptions): Promise<RunPipeline
     scoredWithIds = [];
     for (const s of scoredSignals) {
       assertWithinDeadline();
-      const id = await insertSignalScored(s);
-      scoredWithIds.push({ ...s, id });
+      const payload = { ...s, runRef: runId };
+      const id = await insertSignalScored(payload);
+      scoredWithIds.push({ ...payload, id });
     }
     stageTimings.scored_insert_ms = Date.now() - scoredInsertStart;
 
@@ -234,8 +266,9 @@ export async function runPipeline(opts: RunPipelineOptions): Promise<RunPipeline
     const savedDecisions: Decision[] = [];
     for (const d of decisions) {
       assertWithinDeadline();
-      const id = await insertDecision({ ...d, marketScope });
-      savedDecisions.push({ ...d, id, marketScope });
+      const payload = { ...d, runRef: runId, marketScope };
+      const id = await insertDecision(payload);
+      savedDecisions.push({ ...payload, id });
     }
     decisions = savedDecisions;
     stageTimings.decisions_insert_ms = Date.now() - decisionInsertStart;

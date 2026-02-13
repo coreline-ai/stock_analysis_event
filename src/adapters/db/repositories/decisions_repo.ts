@@ -5,14 +5,15 @@ export async function insertDecision(decision: Decision): Promise<string> {
   const rows = await query<{ id: string }>(
     `
     INSERT INTO decisions
-      (symbol, verdict, confidence, time_horizon, thesis_summary, entry_trigger, invalidation,
+      (run_ref, symbol, verdict, confidence, time_horizon, thesis_summary, entry_trigger, invalidation,
        risk_notes, bull_case, bear_case, red_flags, catalysts, sources_used,
        llm_model, prompt_version, schema_version, market_scope, created_at)
     VALUES
-      ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
+      ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
     RETURNING id
     `,
     [
+      decision.runRef ?? null,
       decision.symbol,
       decision.verdict,
       decision.confidence,
@@ -42,6 +43,7 @@ export async function listDecisions(limit = 50, offset = 0, scope?: MarketScope)
   return query<Decision>(
     `SELECT
       id,
+      run_ref as "runRef",
       symbol,
       market_scope as "marketScope",
       verdict,
@@ -81,6 +83,7 @@ export async function listDecisionsBySymbol(symbol: string, limit = 10, scope?: 
   return query<Decision>(
     `SELECT
       id,
+      run_ref as "runRef",
       symbol,
       market_scope as "marketScope",
       verdict,

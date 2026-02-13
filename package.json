@@ -19,6 +19,7 @@
     "db:scan:branding": "tsx scripts/db_scan_branding.ts",
     "branding:clean": "npm run -s branding:check && npm run -s db:scan:branding",
     "test": "npm run -s branding:check && tsx scripts/run_tests.ts",
+    "diagnose:quality": "tsx scripts/diagnose_quality.ts",
     "test:lock:e2e": "tsx scripts/lock_e2e_smoke.ts",
     "test:gui": "tsx scripts/gui_quality_check.ts",
     "test:gui:features": "tsx scripts/gui_feature_check.ts",

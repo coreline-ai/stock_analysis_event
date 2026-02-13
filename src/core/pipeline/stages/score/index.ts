@@ -10,6 +10,15 @@ function isKrSignal(item: NormalizedSignal): boolean {
   return /^\d{6}$/.test(item.symbol) || item.metadata?.market_scope === "KR";
 }
 
+function toUnitSentiment(sentiment: number): number {
+  return Math.max(0, Math.min(1, (sentiment + 1) / 2));
+}
+
+function clampScore(score: number): number {
+  if (!Number.isFinite(score)) return 0;
+  return Math.max(0, Math.min(1.5, score));
+}
+
 function resolveSourceWeight(source: string, meta?: Record<string, unknown> | null): number {
   if (source === "reddit" && meta?.subreddit && typeof meta.subreddit === "string") {
     const key = `reddit_${meta.subreddit}` as keyof typeof SOURCE_CONFIG.weights;
@@ -35,7 +44,13 @@ export function scoreSignals(normalized: NormalizedSignal[]): SignalScored[] {
     const baseScore = sentiment * freshness * sourceWeight;
     const quant = isKrSignal(item) ? analyzeKrQuantSignal(item, sentiment) : null;
     const quantMultiplier = quant?.quantMultiplier ?? 1;
-    const finalScore = baseScore * quantMultiplier;
+    let finalScore = baseScore * quantMultiplier;
+    if (quant) {
+      const sentimentUnit = toUnitSentiment(sentiment);
+      const hybridEvidence = sentimentUnit * 0.4 + quant.quantScore * 0.6;
+      const gateBoost = quant.hardFilterPassed ? 1.08 : 0.94;
+      finalScore = clampScore(hybridEvidence * freshness * sourceWeight * quantMultiplier * gateBoost);
+    }
     const reasonParts = [
       `감성=${sentiment.toFixed(2)}`,
       `신선도=${freshness.toFixed(2)}`,
@@ -51,6 +66,7 @@ export function scoreSignals(normalized: NormalizedSignal[]): SignalScored[] {
         `퀀트=${quant.quantScore.toFixed(2)}`,
         `리스크=${quant.contextRiskScore.toFixed(2)}`,
         `승수=${quant.quantMultiplier.toFixed(2)}`,
+        `증거점수=${(toUnitSentiment(sentiment) * 0.4 + quant.quantScore * 0.6).toFixed(2)}`,
         `하드필터=${quant.hardFilterPassed ? "통과" : "실패"}`,
         `삼관왕=${quant.tripleCrownPassed ? "통과" : "실패"}`
       );

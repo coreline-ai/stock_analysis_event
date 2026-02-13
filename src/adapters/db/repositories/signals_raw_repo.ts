@@ -114,3 +114,14 @@ export async function countRawSignals(scope?: MarketScope): Promise<number> {
   const rows = await query<{ count: string }>(`SELECT COUNT(*)::text as count FROM signals_raw ${whereClause}`, params);
   return Number(rows[0]?.count ?? "0");
 }
+
+export async function mergeRawPayloadById(id: string, payload: Record<string, unknown>): Promise<void> {
+  await query(
+    `
+    UPDATE signals_raw
+    SET raw_payload = COALESCE(raw_payload, '{}'::jsonb) || $2::jsonb
+    WHERE id = $1
+    `,
+    [id, JSON.stringify(payload)]
+  );
+}
