@@ -1,29 +1,41 @@
 # DeepStock Research Engine
 
-A research-only stock analysis engine that automatically collects, scores, and generates trading signals without broker execution. Provides timing insights with research-quality analysis.
+<div align="center">
+  <img src="https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript">
+  <img src="https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white" alt="Next.js">
+  <img src="https://img.shields.io/badge/PostgreSQL-336791?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL">
+  <img src="https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white" alt="Node.js">
+  <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License: MIT">
+</div>
 
-## Features
+<div align="center">
+  <h3>A research-only stock analysis engine that automatically collects, scores, and generates trading signals without broker execution</h3>
+  <p>Provides timing insights with research-quality analysis for US and Korean markets</p>
+</div>
 
-- **Signal Collection**: Gather signals from multiple sources (Reddit, StockTwits, SEC, News, Crypto)
-- **Signal Scoring**: Weight and normalize collected signals for reproducibility
-- **AI-Powered Decisions**: Generate buy/hold/sell decisions with confidence levels
-- **Daily Reports**: Create comprehensive daily summaries with themes and risks
-- **Multi-Market Support**: US and Korean markets with specialized data sources
-- **Research-Only**: Designed for analysis without broker execution
-- **Modular Pipeline**: Independent stages with timeboxing and safety guards
+---
 
-## Architecture
+## 🚀 Features
+
+- **Multi-Source Signal Collection**: Gather signals from Reddit, StockTwits, SEC, News, Crypto, and Korean market sources
+- **AI-Powered Decision Making**: Generate buy/hold/sell decisions with confidence levels and strategy recommendations
+- **Comprehensive Daily Reports**: Create detailed daily summaries with themes, risks, and market insights
+- **Modular Pipeline Architecture**: Independent stages with timeboxing and safety guards
+- **Research-Only Design**: No broker execution - designed exclusively for analysis
+- **Multi-Market Support**: Simultaneous support for US and Korean markets
+- **Real-time Data Processing**: Fast pipeline execution with efficient data handling
+
+## 📊 Architecture
 
 ```
-├── app/                 # Next.js frontend
-│   ├── api/             # API routes
-│   └── dashboard/       # Dashboard UI components
-├── src/                 # Core application logic
-│   ├── adapters/        # Database and external service adapters
-│   ├── config/          # Configuration and limits
-│   ├── core/            # Core pipeline and domain logic
-│   └── utils/           # Utility functions
-└── scripts/             # Development and maintenance scripts
+┌─────────────────────────────────────────────────────────────┐
+│                    DeepStock Research                    │
+├─────────────────────────────────────────────────────────────┤
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────┐ │
+│  │  Frontend   │  │   API       │  │  Pipeline   │  │ DB  │ │
+│  │ (Next.js)   │  │ (Next.js)   │  │ (Core)      │  │     │ │
+│  └─────────────┘  └─────────────┘  └─────────────┘  └─────┘ │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ### Pipeline Stages
@@ -34,7 +46,7 @@ A research-only stock analysis engine that automatically collects, scores, and g
 4. **Decide**: Generate AI-powered trading decisions
 5. **Report**: Create daily summary reports
 
-## Installation
+## 📥 Installation
 
 ```bash
 # Clone the repository
@@ -52,7 +64,7 @@ cp .env.example .env
 npm run dev
 ```
 
-## Configuration
+## ⚙️ Configuration
 
 ### Environment Variables
 
@@ -82,45 +94,29 @@ LLM_MAX_CALLS_PER_RUN=10
 LLM_MAX_TOKENS_PER_CALL=1500
 ```
 
-## Usage
+## 🚀 Usage
 
 ### API Endpoints
 
-#### Health Check
-```bash
-GET /api/health
-```
-
-#### Trigger Pipeline (Authenticated)
-```bash
-POST /api/agent/trigger
-```
-
-#### Symbol Search
-```bash
-GET /api/agent/symbols/search?q= symbol
-```
-
-#### Symbol Resolution
-```bash
-GET /api/agent/symbols/resolve?symbol= symbol
-```
-
-#### Symbol Report
-```bash
-GET /api/agent/symbol-report?symbol= symbol
-```
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/health` | GET | Check system health status |
+| `/api/agent/trigger` | POST | Trigger pipeline execution (authenticated) |
+| `/api/agent/symbols/search` | GET | Search for symbols |
+| `/api/agent/symbols/resolve` | GET | Resolve symbol information |
+| `/api/agent/symbol-report` | GET | Get symbol analysis report |
 
 ### Dashboard
 
 Access the web interface at `http://localhost:3000/dashboard` to:
-- View collected signals
-- See scored results
-- Check AI decisions
-- Review daily reports
-- Configure settings
 
-## Development
+- View collected signals and their sources
+- See scored results with confidence levels
+- Check AI-generated trading decisions
+- Review comprehensive daily reports
+- Configure system settings and preferences
+
+## 🛠️ Development
 
 ### Running Tests
 
@@ -160,7 +156,7 @@ npm run dev:down
 npm run dev:status
 ```
 
-## Contributing
+## 🤝 Contributing
 
 Contributions are welcome! Please follow these steps:
 
@@ -176,8 +172,9 @@ Contributions are welcome! Please follow these steps:
 - Maintain consistent code style
 - Write comprehensive tests
 - Update documentation
+- Ensure all tests pass before submitting
 
-## License
+## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
