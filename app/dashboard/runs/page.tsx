@@ -198,8 +198,8 @@ export default function RunsPage() {
             <p><strong>종료:</strong> {selected.finishedAt ? new Date(selected.finishedAt).toLocaleString() : "-"}</p>
             <p><strong>스코어링 수:</strong> {selected.scoredCount ?? 0}</p>
             <p><strong>판단 수:</strong> {selected.decidedCount ?? 0}</p>
-            <p><strong>LLM 호출 수:</strong> {selected.llmCalls ?? 0}</p>
-            <p><strong>LLM 추정 토큰:</strong> {selected.llmTokensEstimated ?? 0}</p>
+            <p><strong>AI 판단 호출 수:</strong> {selected.llmCalls ?? 0}</p>
+            <p><strong>AI 사용량(추정 토큰):</strong> {selected.llmTokensEstimated ?? 0}</p>
             <p><strong>오류:</strong> {selected.errorSummary ?? "-"}</p>
             <p><strong>수집 건수:</strong></p>
             <pre className="code-box">{JSON.stringify(selected.gatheredCounts ?? {}, null, 2)}</pre>

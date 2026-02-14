@@ -4,7 +4,9 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import type { DailyReport } from "@/core/domain/types";
 import { apiRequest } from "../_components/api_client";
+import { ReportSummaryPanel } from "../_components/charts/report_summary_panel";
 import { useDashboardContext } from "../_components/dashboard_context";
+import { useKrSymbolNameMap, useUsSymbolNameMap } from "../_components/kr_symbol_names";
 import { marketScopeLabel, verdictLabel } from "../_components/labels";
 import { trackEvent } from "../_components/telemetry";
 import { EmptyState, ErrorState, LoadingBlock } from "../_components/ui_primitives";
@@ -15,6 +17,25 @@ function asItems(payload: unknown): DailyReport[] {
     return ((payload as { items?: unknown }).items ?? []) as DailyReport[];
   }
   return [];
+}
+
+function reportDateLabel(value: string): string {
+  if (!value) return "-";
+  return value.length >= 10 ? value.slice(0, 10) : value;
+}
+
+function extractEvidenceSymbols(markdown: string): string[] {
+  const set = new Set<string>();
+  const lines = markdown.split("\n");
+  for (const line of lines) {
+    const match = line.match(/^\s*-\s*\[([^\]]+)\]\s*score=/);
+    if (!match?.[1]) continue;
+    const raw = match[1].trim();
+    const codeMatch = raw.match(/^(\d{6}|[A-Za-z]{1,5})\b/);
+    if (!codeMatch?.[1]) continue;
+    set.add(codeMatch[1].toUpperCase());
+  }
+  return Array.from(set);
 }
 
 export default function ReportsPage() {
@@ -92,6 +113,9 @@ export default function ReportsPage() {
     () => visibleReports.find((r) => r.id === selectedId) ?? filtered.find((r) => r.id === selectedId) ?? filtered[0] ?? null,
     [visibleReports, filtered, selectedId]
   );
+  const evidenceSymbols = useMemo(() => extractEvidenceSymbols(selected?.summaryMarkdown ?? ""), [selected?.summaryMarkdown]);
+  const krSymbolNames = useKrSymbolNameMap(evidenceSymbols, token);
+  const usSymbolNames = useUsSymbolNameMap(evidenceSymbols, token);
 
   useEffect(() => {
     setVisibleCount(40);
@@ -154,7 +178,7 @@ export default function ReportsPage() {
               onClick={() => setSelectedId(r.id ?? "")}
             >
               <div className="list-item-head">
-                <strong>{new Date(r.reportDate).toISOString().slice(0, 10)}</strong>
+                <strong>{reportDateLabel(r.reportDate)}</strong>
                 <span className="badge badge-alt">{marketScopeLabel(r.marketScope)}</span>
               </div>
               <p>{r.summaryMarkdown.slice(0, 140)}...</p>
@@ -176,7 +200,7 @@ export default function ReportsPage() {
         ) : (
           <>
             <div className="list-item-head">
-              <h3>{new Date(selected.reportDate).toISOString().slice(0, 10)} 리포트</h3>
+              <h3>{reportDateLabel(selected.reportDate)} 리포트</h3>
               <div className="button-row">
                 <button type="button" onClick={() => downloadReport("json")}>
                   JSON 다운로드
@@ -219,6 +243,12 @@ export default function ReportsPage() {
                 ))
               )}
             </div>
+            <ReportSummaryPanel
+              report={selected}
+              marketScope={selected.marketScope}
+              krSymbolNames={krSymbolNames}
+              usSymbolNames={usSymbolNames}
+            />
             <div className="markdown-box">{selected.summaryMarkdown}</div>
           </>
         )}

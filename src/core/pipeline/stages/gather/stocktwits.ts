@@ -1,6 +1,7 @@
 import type { SignalRaw } from "@/core/domain/types";
 import { nowIso } from "@/core/utils/time";
 import { fetchJson } from "./http";
+import { warn } from "@/core/utils/logger";
 
 export async function gatherStockTwits(limit = 15): Promise<SignalRaw[]> {
   const results: SignalRaw[] = [];
@@ -12,6 +13,14 @@ export async function gatherStockTwits(limit = 15): Promise<SignalRaw[]> {
     }
   });
   const symbols: Array<{ symbol: string }> = trending?.symbols ?? [];
+  if (!trending) {
+    warn("gather.stocktwits", "stocktwits_trending_unavailable");
+    return [];
+  }
+  if (symbols.length === 0) {
+    warn("gather.stocktwits", "stocktwits_trending_empty");
+    return [];
+  }
 
   for (const entry of symbols.slice(0, limit)) {
     const sym = entry.symbol;
@@ -25,8 +34,16 @@ export async function gatherStockTwits(limit = 15): Promise<SignalRaw[]> {
         }
       }
     );
+    if (!stream) {
+      warn("gather.stocktwits", "stocktwits_stream_unavailable", { symbol: sym });
+      continue;
+    }
     const messages: Array<{ id?: number; entities?: { sentiment?: { basic?: string } }; created_at?: string }> =
       stream?.messages ?? [];
+    if (messages.length === 0) {
+      warn("gather.stocktwits", "stocktwits_stream_empty", { symbol: sym });
+      continue;
+    }
 
     let bullish = 0;
     let bearish = 0;

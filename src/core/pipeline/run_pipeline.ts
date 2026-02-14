@@ -94,6 +94,26 @@ export async function runPipeline(opts: RunPipelineOptions): Promise<RunPipeline
       throw new Error("timebox_exceeded");
     }
   };
+  async function runWithDeadline<T>(label: string, fn: () => Promise<T>): Promise<T> {
+    const remainingMs = hardDeadlineMs - Date.now();
+    if (remainingMs <= 0) throw new Error("timebox_exceeded");
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    try {
+      return await Promise.race([
+        fn(),
+        new Promise<T>((_, reject) => {
+          timer = setTimeout(() => reject(new Error("timebox_exceeded")), remainingMs);
+        })
+      ]);
+    } catch (err) {
+      if (err instanceof Error && err.message === "timebox_exceeded") {
+        logger.warn("pipeline_stage_timeout", { stage: label, remainingMs });
+      }
+      throw err;
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
 
   try {
     logger.info("pipeline_start", { triggerType: opts.triggerType, marketScope, strategyKey });
@@ -149,15 +169,15 @@ export async function runPipeline(opts: RunPipelineOptions): Promise<RunPipeline
     assertWithinDeadline();
 
     const tickerStart = Date.now();
-    await refreshSecTickersIfNeeded();
+    await runWithDeadline("ticker_cache_sec", () => refreshSecTickersIfNeeded());
     if (marketScope === "KR" || marketScope === "ALL") {
-      await refreshKrTickersIfNeeded();
+      await runWithDeadline("ticker_cache_kr", () => refreshKrTickersIfNeeded());
     }
     stageTimings.ticker_cache_ms = Date.now() - tickerStart;
     assertWithinDeadline();
 
     const gatherStart = Date.now();
-    const gatherResult = await runGather(marketScope, limits);
+    const gatherResult = await runWithDeadline("gather", () => runGather(marketScope, limits));
     stageTimings.gather_ms = Date.now() - gatherStart;
     assertWithinDeadline();
     gatheredCounts = gatherResult.counts;

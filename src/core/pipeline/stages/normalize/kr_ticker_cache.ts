@@ -1,26 +1,12 @@
 import { unzipSync } from "node:zlib";
 import { getEnv } from "@/config/runtime";
+import { listKrTickerMap, upsertKrTickerMap } from "@/adapters/db/repositories/kr_ticker_map_repo";
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const NAVER_LISTING_MAX_PAGES = 20;
 
-const DEFAULT_KR_TICKERS: Array<[string, string]> = [
-  ["005930", "삼성전자"],
-  ["000660", "SK하이닉스"],
-  ["035420", "네이버"],
-  ["005380", "현대차"],
-  ["035720", "카카오"],
-  ["051910", "LG화학"],
-  ["068270", "셀트리온"],
-  ["207940", "삼성바이오로직스"],
-  ["105560", "KB금융"],
-  ["096770", "SK이노베이션"]
-];
-
-const codeToName = new Map<string, string>(DEFAULT_KR_TICKERS);
-const nameToCode = new Map<string, string>(
-  DEFAULT_KR_TICKERS.map(([code, name]) => [normalizeKrName(name), code] as const)
-);
+const codeToName = new Map<string, string>();
+const nameToCode = new Map<string, string>();
 let nameToCodeEntries = Array.from(nameToCode.entries()).sort((a, b) => b[0].length - a[0].length);
 
 let lastFetchedAt = 0;
@@ -41,6 +27,19 @@ function buildFlexibleNameRegex(normalizedName: string): RegExp {
 
 function rebuildNameEntries(): void {
   nameToCodeEntries = Array.from(nameToCode.entries()).sort((a, b) => b[0].length - a[0].length);
+}
+
+function applyRows(rows: Array<{ code: string; name: string }>): void {
+  codeToName.clear();
+  nameToCode.clear();
+  for (const row of rows) {
+    const code = row.code.trim();
+    const name = row.name.trim();
+    if (!/^\d{6}$/.test(code) || !name) continue;
+    codeToName.set(code, name);
+    nameToCode.set(normalizeKrName(name), code);
+  }
+  rebuildNameEntries();
 }
 
 function decodeXml(value: string): string {
@@ -115,6 +114,16 @@ export async function refreshKrTickersIfNeeded(force = false): Promise<void> {
   const now = Date.now();
   if (!force && now - lastFetchedAt < CACHE_TTL_MS) return;
 
+  if (!hasFullUniverse || codeToName.size === 0) {
+    const persistedRows = await listKrTickerMap().catch(() => []);
+    if (persistedRows.length > 0) {
+      applyRows(persistedRows);
+      hasFullUniverse = true;
+      lastFetchedAt = now;
+      if (!force) return;
+    }
+  }
+
   const key = getEnv("DART_API_KEY");
   let rows: Array<{ code: string; name: string }> = [];
   if (key) {
@@ -138,14 +147,10 @@ export async function refreshKrTickersIfNeeded(force = false): Promise<void> {
     return;
   }
 
-  for (const row of rows) {
-    codeToName.set(row.code, row.name);
-    nameToCode.set(normalizeKrName(row.name), row.code);
-  }
-  rebuildNameEntries();
-
+  applyRows(rows);
   hasFullUniverse = true;
   lastFetchedAt = now;
+  await upsertKrTickerMap(rows).catch(() => {});
 }
 
 export function hasKrTickerUniverse(): boolean {
@@ -223,4 +228,10 @@ export function extractKrTickerCandidatesByName(text: string, limit = 3): string
   }
 
   return Array.from(matches);
+}
+
+export function primeKrTickerCache(rows: Array<{ code: string; name: string }>): void {
+  applyRows(rows);
+  hasFullUniverse = codeToName.size > 0;
+  lastFetchedAt = Date.now();
 }

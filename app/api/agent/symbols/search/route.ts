@@ -5,6 +5,7 @@ import { searchScoredSymbols } from "@/adapters/db/repositories/signals_scored_r
 import { classifyApiError, jsonError, jsonOk } from "@/core/utils/http";
 import { logAuthFailure } from "@/security/log";
 import { refreshKrTickersIfNeeded, searchKrTickers } from "@/core/pipeline/stages/normalize/kr_ticker_cache";
+import { lookupSecTickerName, refreshSecTickersIfNeeded } from "@/core/pipeline/stages/normalize/ticker_cache";
 import type { MarketScope } from "@/core/domain/types";
 
 interface SymbolSuggestionItem {
@@ -81,15 +82,17 @@ export async function GET(req: NextRequest) {
     }
 
     if (scope !== "KR" && items.length < limit) {
+      await refreshSecTickersIfNeeded();
       const usSymbols = await searchScoredSymbols(query, limit - items.length, "US");
       for (const symbol of usSymbols) {
         const key = `US:${symbol}`;
         if (seen.has(key)) continue;
         seen.add(key);
+        const name = lookupSecTickerName(symbol);
         items.push({
           symbol,
-          name: null,
-          display: symbol,
+          name,
+          display: name ? `${symbol} ${name}` : symbol,
           marketScope: "US"
         });
         if (items.length >= limit) break;

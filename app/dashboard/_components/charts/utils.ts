@@ -59,6 +59,54 @@ export interface ParsedEntryTrigger {
   targetPercent?: number;
 }
 
+const TIME_UNIT_PATTERN = /^(?:거래일|일|주|개월|년|시간|분|day|days|week|weeks|month|months|year|years)\b/i;
+
+function toPositiveNumber(raw: string): number | null {
+  const value = Number(raw.replace(/,/g, ""));
+  if (!Number.isFinite(value) || value <= 0) return null;
+  return value;
+}
+
+function extractPriceFromText(text: string): number | null {
+  const prefixedCurrency = text.match(/(?:₩|\$|USD|KRW)\s*([0-9][0-9,]*(?:\.\d+)?)/i);
+  if (prefixedCurrency?.[1]) {
+    const value = toPositiveNumber(prefixedCurrency[1]);
+    if (value !== null) return value;
+  }
+
+  const suffixedCurrency = text.match(/([0-9][0-9,]*(?:\.\d+)?)\s*(?:원|KRW|USD|달러|불)\b/i);
+  if (suffixedCurrency?.[1]) {
+    const value = toPositiveNumber(suffixedCurrency[1]);
+    if (value !== null) return value;
+  }
+
+  const keywordPrice = text.match(
+    /(?:목표가|진입가|매수가|가격|price|target)\s*[:=]?\s*([0-9][0-9,]*(?:\.\d+)?)(?!\s*(?:거래일|일|주|개월|년|day|days|week|weeks|month|months|year|years))/i
+  );
+  if (keywordPrice?.[1]) {
+    const value = toPositiveNumber(keywordPrice[1]);
+    if (value !== null) return value;
+  }
+
+  const numericMatches = text.matchAll(/([0-9][0-9,]*(?:\.\d+)?)/g);
+  for (const match of numericMatches) {
+    const raw = match[1];
+    const index = match.index ?? -1;
+    if (index < 0) continue;
+    const end = index + raw.length;
+    const trailing = text.slice(end).trimStart();
+    if (TIME_UNIT_PATTERN.test(trailing)) continue;
+
+    const value = toPositiveNumber(raw);
+    if (value === null) continue;
+    const hasComma = raw.includes(",");
+    const hasDecimal = raw.includes(".");
+    if (hasComma || hasDecimal || value >= 100) return value;
+  }
+
+  return null;
+}
+
 export function parseEntryTrigger(trigger: string): ParsedEntryTrigger {
   const text = trigger.trim();
   if (!text) return { mode: "text" };
@@ -69,11 +117,8 @@ export function parseEntryTrigger(trigger: string): ParsedEntryTrigger {
     if (Number.isFinite(value)) return { mode: "percent", targetPercent: value };
   }
 
-  const priceMatch = text.match(/(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)/);
-  if (priceMatch) {
-    const value = Number(priceMatch[1].replace(/,/g, ""));
-    if (Number.isFinite(value) && value > 0) return { mode: "price", targetPrice: value };
-  }
+  const targetPrice = extractPriceFromText(text);
+  if (targetPrice !== null) return { mode: "price", targetPrice };
 
   return { mode: "text" };
 }

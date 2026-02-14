@@ -33,11 +33,11 @@ function buildPoints(axes: AxisPoint[], center: number, radius: number): string 
 
 export function RadarPentagonChart(props: RadarPentagonChartProps) {
   const axes: AxisPoint[] = [
-    { key: "social", label: "Social", value: clamp01(props.socialScore ?? 0) },
-    { key: "event", label: "Event", value: clamp01(props.eventScore ?? 0) },
-    { key: "volume", label: "Volume", value: clamp01(props.volumeScore ?? 0) },
-    { key: "flow", label: "Flow", value: clamp01(props.flowScore ?? 0) },
-    { key: "technical", label: "Tech", value: clamp01(props.technicalScore ?? 0) }
+    { key: "social", label: "시장 반응", value: clamp01(props.socialScore ?? 0) },
+    { key: "event", label: "이벤트", value: clamp01(props.eventScore ?? 0) },
+    { key: "volume", label: "거래량", value: clamp01(props.volumeScore ?? 0) },
+    { key: "flow", label: "수급", value: clamp01(props.flowScore ?? 0) },
+    { key: "technical", label: "기술", value: clamp01(props.technicalScore ?? 0) }
   ];
   const center = 90;
   const radius = 70;

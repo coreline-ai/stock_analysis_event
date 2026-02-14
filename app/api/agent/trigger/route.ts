@@ -43,7 +43,13 @@ export async function POST(req: NextRequest) {
     const llmProvider = parseLLMProvider(parsed.llmProvider);
     if (parsed.llmProvider && !llmProvider) return jsonError("invalid_request", 400, "invalid_request");
 
-    const result = await runPipeline({ triggerType: "manual", marketScope, strategyKey, llmProviderName: llmProvider });
+    const result = await runPipeline({
+      triggerType: "manual",
+      marketScope,
+      strategyKey,
+      llmProviderName: llmProvider,
+      ignoreMinInterval: true
+    });
     return jsonOk(result);
   } catch (err) {
     const mapped = classifyApiError(err);

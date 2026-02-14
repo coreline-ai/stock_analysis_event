@@ -63,7 +63,8 @@ export default function SettingsPage() {
           `x-api-token` 헤더에 `API_TOKEN` 전달이 필요합니다.
         </p>
         <p>
-          Stub은 실행 경로에서 허용되지 않으며 `LLM_PROVIDER`는 `glm | openai | gemini` 중 하나여야 합니다.
+          테스트용 임시 응답(Stub)은 실제 실행 경로에서 허용되지 않습니다. AI 제공자(`LLM_PROVIDER`)는
+          `glm | openai | gemini` 중 하나로 설정해야 합니다.
         </p>
         <p>
           분석 실행은 주기 스케줄 없이 대시보드의 수동 실행 버튼(미국/한국)으로만 진행됩니다.
@@ -107,7 +108,7 @@ npm run dev:local`}
       <section className="card">
         <h3>Placeholder 정리/재생성</h3>
         <p>
-          기존 `stub/tbd/none/없음` 판단 데이터를 정리한 뒤 선택한 LLM으로 지정한 스코프만 재생성합니다.
+          기존 임시값(`stub/tbd/none/없음`) 판단 데이터를 정리한 뒤 선택한 LLM으로 지정한 스코프만 재생성합니다.
         </p>
         <p>
           <label htmlFor="settings-maintenance-scope"><strong>대상 스코프:</strong></label>{" "}

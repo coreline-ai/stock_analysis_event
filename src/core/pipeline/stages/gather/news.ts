@@ -1,13 +1,27 @@
 import type { SignalRaw } from "@/core/domain/types";
 import { extractKrTickerCandidates, extractTickerCandidates } from "../normalize/symbol_map";
 import { extractKrTickerCandidatesByName } from "../normalize/kr_ticker_cache";
+import { extractSecTickerCandidatesByName } from "../normalize/ticker_cache";
 import { nowIso } from "@/core/utils/time";
 import { getEnv } from "@/config/runtime";
 import { fetchJson, fetchText } from "./http";
 import { buildKrMarketMetadata } from "./kr_market_meta";
 
-export function parseRssItems(xml: string): Array<{ title: string; link: string; pubDate: string }> {
-  const items: Array<{ title: string; link: string; pubDate: string }> = [];
+function decodeHtmlEntities(value: string): string {
+  return value
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
+}
+
+function stripHtml(value: string): string {
+  return decodeHtmlEntities(value.replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim();
+}
+
+export function parseRssItems(xml: string): Array<{ title: string; link: string; pubDate: string; description?: string }> {
+  const items: Array<{ title: string; link: string; pubDate: string; description?: string }> = [];
   const itemRegex = /<item>([\s\S]*?)<\/item>/g;
   let match: RegExpExecArray | null;
   while ((match = itemRegex.exec(xml)) !== null) {
@@ -18,9 +32,24 @@ export function parseRssItems(xml: string): Array<{ title: string; link: string;
       .trim();
     const link = (itemXml.match(/<link>(.*?)<\/link>/)?.[1] || "").trim();
     const pubDate = (itemXml.match(/<pubDate>(.*?)<\/pubDate>/)?.[1] || "").trim();
-    if (title) items.push({ title, link, pubDate });
+    const rawDescription =
+      itemXml.match(/<description><!\[CDATA\[(.*?)\]\]><\/description>/)?.[1] ??
+      itemXml.match(/<description>([\s\S]*?)<\/description>/)?.[1] ??
+      "";
+    const description = stripHtml(rawDescription);
+    if (title) items.push({ title, link, pubDate, description: description || undefined });
   }
   return items;
+}
+
+function buildUsSymbolCandidates(...parts: Array<string | null | undefined>): string[] {
+  const text = parts
+    .map((part) => part ?? "")
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!text) return [];
+  return Array.from(new Set([...extractTickerCandidates(text), ...extractSecTickerCandidatesByName(text)]));
 }
 
 export async function gatherNews(limit = 20): Promise<SignalRaw[]> {
@@ -33,13 +62,14 @@ export async function gatherNews(limit = 20): Promise<SignalRaw[]> {
     const articles = data.articles ?? [];
     return articles.map((a) => {
       const title = a.title ?? "";
-      const symbols = extractTickerCandidates(title);
+      const body = a.description ?? a.content ?? null;
+      const symbols = buildUsSymbolCandidates(title, body);
       return {
         source: "news",
         externalId: a.url ?? `news_${Date.now()}`,
         symbolCandidates: symbols,
         title,
-        body: a.description ?? null,
+        body,
         url: a.url ?? null,
         author: a.author ?? null,
         publishedAt: a.publishedAt ?? null,
@@ -57,13 +87,13 @@ export async function gatherNews(limit = 20): Promise<SignalRaw[]> {
   const items = parseRssItems(xml);
 
   return items.slice(0, limit).map((item) => {
-    const symbols = extractTickerCandidates(item.title);
+    const symbols = buildUsSymbolCandidates(item.title, item.description ?? null);
     return {
       source: "news",
       externalId: item.link || `news_${Date.now()}`,
       symbolCandidates: symbols,
       title: item.title,
-      body: null,
+      body: item.description ?? null,
       url: item.link || null,
       author: null,
       publishedAt: item.pubDate ? new Date(item.pubDate).toISOString() : null,

@@ -6,6 +6,7 @@ import { extractKrTickerCandidatesByName } from "../normalize/kr_ticker_cache";
 import { fetchJson, fetchText } from "./http";
 import { parseRssItems } from "./news";
 import { buildKrMarketMetadata } from "./kr_market_meta";
+import { warn } from "@/core/utils/logger";
 
 interface DartDisclosure {
   rcept_no?: string;
@@ -111,8 +112,13 @@ async function gatherDartNewsFallback(limit: number): Promise<SignalRaw[]> {
 
 export async function gatherDart(limit = 20): Promise<SignalRaw[]> {
   const key = getEnv("DART_API_KEY");
-  const fallbackEnabled = getBooleanEnv("DART_NEWS_FALLBACK_ENABLED", false);
+  const fallbackEnabled = getBooleanEnv("DART_NEWS_FALLBACK_ENABLED", true);
   if (!key) {
+    if (!fallbackEnabled) {
+      warn("gather.dart", "dart_disabled_no_key_and_fallback_off");
+      return [];
+    }
+    warn("gather.dart", "dart_no_key_using_news_fallback");
     return fallbackEnabled ? gatherDartNewsFallback(limit) : [];
   }
 
@@ -124,11 +130,29 @@ export async function gatherDart(limit = 20): Promise<SignalRaw[]> {
       `https://opendart.fss.or.kr/api/list.json?crtfc_key=${encodeURIComponent(key)}` +
       `&bgn_de=${yyyymmdd(start)}&end_de=${yyyymmdd(end)}&corp_cls=Y&page_no=1&page_count=${Math.max(1, Math.min(limit * 2, 100))}`;
     const response = await fetchJson<DartListResponse>(url);
-    if (!response) continue;
-    if (response.status && response.status !== "000") continue;
-    if ((response.list ?? []).length === 0) continue;
+    if (!response) {
+      warn("gather.dart", "dart_api_no_response", { dayWindow });
+      continue;
+    }
+    if (response.status && response.status !== "000") {
+      warn("gather.dart", "dart_api_error", {
+        dayWindow,
+        status: response.status,
+        message: response.message ?? null
+      });
+      continue;
+    }
+    if ((response.list ?? []).length === 0) {
+      warn("gather.dart", "dart_api_empty", { dayWindow });
+      continue;
+    }
     return mapDisclosuresToSignals(response.list ?? [], limit);
   }
 
+  if (fallbackEnabled) {
+    warn("gather.dart", "dart_api_empty_using_news_fallback");
+  } else {
+    warn("gather.dart", "dart_api_empty_and_fallback_off");
+  }
   return fallbackEnabled ? gatherDartNewsFallback(limit) : [];
 }

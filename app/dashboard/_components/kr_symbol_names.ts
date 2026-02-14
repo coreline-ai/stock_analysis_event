@@ -11,6 +11,10 @@ function stableCodeKey(codes: string[]): string {
   return codes.slice().sort().join(",");
 }
 
+function isUsTickerSymbol(symbol: string): boolean {
+  return /^[A-Z]{1,5}$/.test(symbol.trim().toUpperCase());
+}
+
 export function useKrSymbolNameMap(symbols: string[], token: string): Record<string, string> {
   const [names, setNames] = useState<Record<string, string>>({});
 
@@ -49,6 +53,45 @@ export function useKrSymbolNameMap(symbols: string[], token: string): Record<str
   return names;
 }
 
+export function useUsSymbolNameMap(symbols: string[], token: string): Record<string, string> {
+  const [names, setNames] = useState<Record<string, string>>({});
+
+  const tickers = useMemo(() => {
+    const deduped = new Set<string>();
+    for (const symbol of symbols) {
+      const upper = symbol.trim().toUpperCase();
+      if (!isUsTickerSymbol(upper)) continue;
+      deduped.add(upper);
+      if (deduped.size >= 300) break;
+    }
+    return Array.from(deduped);
+  }, [symbols]);
+
+  const tickerKey = useMemo(() => stableCodeKey(tickers), [tickers]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      if (tickers.length === 0) {
+        setNames({});
+        return;
+      }
+      const query = encodeURIComponent(tickers.join(","));
+      const res = await apiRequest<{ names: Record<string, string> }>(`/api/agent/symbols/resolve?symbols=${query}`, { token });
+      if (cancelled || !res.ok) return;
+      setNames(res.data.names ?? {});
+    }
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [tickerKey, token]);
+
+  return names;
+}
+
 export function formatKrSymbol(symbol: string, names: Record<string, string>): string {
   const trimmed = symbol.trim();
   if (!isKrTickerCode(trimmed)) return symbol;
@@ -56,7 +99,13 @@ export function formatKrSymbol(symbol: string, names: Record<string, string>): s
   return name ? `${trimmed} (${name})` : trimmed;
 }
 
+export function formatUsSymbol(symbol: string, names: Record<string, string>): string {
+  const upper = symbol.trim().toUpperCase();
+  if (!isUsTickerSymbol(upper)) return symbol;
+  const name = names[upper];
+  return name ? `${upper} (${name})` : upper;
+}
+
 export function formatKrSymbolCandidates(candidates: string[], names: Record<string, string>): string {
   return candidates.map((symbol) => formatKrSymbol(symbol, names)).join(", ");
 }
-

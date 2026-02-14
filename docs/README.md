@@ -141,4 +141,4 @@ DEEPSTOCK는 다음을 **강제적으로 보장**합니다:
 
 ## 📄 License
 
-TBD
+UNLICENSED (All rights reserved)

@@ -38,7 +38,7 @@ export async function listReports(limit = 30, offset = 0, scope?: MarketScope): 
   return query<DailyReport>(
     `SELECT
       id,
-      report_date as "reportDate",
+      report_date::text as "reportDate",
       market_scope as "marketScope",
       summary_markdown as "summaryMarkdown",
       top_buy_now as "topBuyNow",

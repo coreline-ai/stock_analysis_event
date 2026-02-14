@@ -64,7 +64,7 @@
 
 ## 6) 운영 주의사항
 
-- `LLM_PROVIDER=stub`는 운영에서 사용하지 않는다.
+- `LLM_PROVIDER`는 `glm|openai|gemini`만 허용된다.
 - GLM 사용 시 `GLM_BASE_URL`, `GLM_MODEL`, `GLM_TEMPERATURE`, `GLM_THINKING_TYPE=disabled`를 명시한다.
 - 비용 제한(`LLM_MAX_*`)을 반드시 설정한다.
 

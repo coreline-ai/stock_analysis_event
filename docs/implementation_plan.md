@@ -470,7 +470,7 @@ npm test
 #### 4. 파이프라인 스모크 테스트
 ```bash
 DATABASE_URL=postgres://deepstock:deepstock@127.0.0.1:15432/deepstock \
-KR_MARKET_ENABLED=true DART_API_KEY=test LLM_PROVIDER=stub \
+KR_MARKET_ENABLED=true DART_API_KEY=test LLM_PROVIDER=glm GLM_API_KEY=YOUR_KEY \
 npx tsx scripts/pipeline_smoke_test.ts
 ```
 - 한국 소스가 포함된 상태에서 전체 파이프라인이 에러 없이 완주하는지 확인

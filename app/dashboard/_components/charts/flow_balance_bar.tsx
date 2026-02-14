@@ -14,8 +14,8 @@ export function FlowBalanceBar(props: FlowBalanceBarProps) {
   return (
     <section className="chart-card" role="group" aria-label="스마트 머니 수급 밸런스">
       <div className="chart-head">
-        <h4>스마트 머니</h4>
-        <span className="badge-alt">Gap {gap.toFixed(2)}</span>
+        <h4>관심 대비 수급</h4>
+        <span className="badge-alt">차이 {gap.toFixed(2)}</span>
       </div>
       <div className="flow-track">
         <div className="flow-social" style={{ width: `${social * 100}%` }} />
@@ -23,11 +23,11 @@ export function FlowBalanceBar(props: FlowBalanceBarProps) {
       </div>
       <div className="mini-grid">
         <div className="mini-metric">
-          <span>관심도(Social)</span>
+          <span>관심도(시장 반응)</span>
           <strong>{social.toFixed(2)}</strong>
         </div>
         <div className="mini-metric">
-          <span>실수급(Flow)</span>
+          <span>실수급(매수 유입)</span>
           <strong>{flow.toFixed(2)}</strong>
         </div>
       </div>

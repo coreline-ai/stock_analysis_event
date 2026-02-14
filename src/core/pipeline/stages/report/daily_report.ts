@@ -1,6 +1,8 @@
 import type { Decision, DailyReport, DecisionVerdict, MarketScope, SignalScored } from "@/core/domain/types";
 import { nowIso } from "@/core/utils/time";
 import { lookupKrTickerName } from "../normalize/kr_ticker_cache";
+import { lookupSecTickerName } from "../normalize/ticker_cache";
+import { horizonLabelKo, marketScopeLabelKo, verdictLabelKo } from "@/core/presentation/terms";
 
 function normalizeText(value: string): string {
   return value.trim().toLowerCase();
@@ -12,25 +14,22 @@ function isPlaceholderText(value: string): boolean {
 }
 
 function verdictHeading(verdict: DecisionVerdict): string {
-  if (verdict === "BUY_NOW") return "즉시 진입";
-  if (verdict === "WATCH") return "관망";
-  return "회피";
+  return verdictLabelKo(verdict);
 }
 
 function horizonLabel(value: Decision["timeHorizon"]): string {
-  if (value === "intraday") return "당일";
-  if (value === "swing") return "스윙";
-  return "장기";
+  return horizonLabelKo(value);
 }
 
 function marketScopeLabel(scope: MarketScope): string {
-  if (scope === "KR") return "한국";
-  if (scope === "ALL") return "통합";
-  return "미국";
+  return marketScopeLabelKo(scope);
 }
 
 function decorateSymbol(symbol: string, scope: MarketScope): string {
-  if (scope === "US") return symbol;
+  if (scope === "US") {
+    const usName = lookupSecTickerName(symbol);
+    return usName ? `${symbol} (${usName})` : symbol;
+  }
   if (!/^\d{6}$/.test(symbol)) return symbol;
   const name = lookupKrTickerName(symbol);
   return name ? `${symbol} (${name})` : symbol;
@@ -75,7 +74,7 @@ function summarizeHybrid(scoredSignals: SignalScored[]): {
   return { count: quantSignals.length, avgQuant, avgSocial, avgEvent, avgContextRisk, hardPassCount, triplePassCount };
 }
 
-function formatEvidence(decision: Decision, scoredById: Map<string, SignalScored>): string[] {
+function formatEvidence(decision: Decision, scoredById: Map<string, SignalScored>, marketScope: MarketScope): string[] {
   const lines: string[] = [];
   const evidences = decision.sourcesUsed
     .map((id) => ({ id, signal: scoredById.get(id) }))
@@ -90,8 +89,9 @@ function formatEvidence(decision: Decision, scoredById: Map<string, SignalScored
 
   lines.push("- 근거 시그널:");
   for (const item of evidences) {
+    const evidenceLabel = decorateSymbol(item.signal.symbol, marketScope);
     lines.push(
-      `  - [${item.signal.symbol}] score=${item.signal.finalScore.toFixed(3)} ` +
+      `  - [${evidenceLabel}] score=${item.signal.finalScore.toFixed(3)} ` +
       `(감성=${item.signal.sentimentScore.toFixed(2)}, 신선도=${item.signal.freshnessScore.toFixed(2)}, 가중치=${item.signal.sourceWeight.toFixed(2)}) ` +
       `${item.signal.reasonSummary || "요약 없음"}`
     );
@@ -117,16 +117,16 @@ function formatDecisionSection(
     const placeholder = isPlaceholderText(decision.thesisSummary);
     const symbolLabel = decorateSymbol(decision.symbol, marketScope);
     lines.push(
-      `### ${symbolLabel} (${verdictHeading(verdict)} ${verdict}, 신뢰도 ${(decision.confidence * 100).toFixed(0)}%, ${horizonLabel(decision.timeHorizon)})`
+      `### ${symbolLabel} (${verdictHeading(verdict)}, 확신도 ${(decision.confidence * 100).toFixed(0)}%, 보유 기간 ${horizonLabel(decision.timeHorizon)})`
     );
     lines.push(`- 핵심 근거: ${decision.thesisSummary}`);
     lines.push(`- 진입 트리거: ${decision.entryTrigger}`);
     lines.push(`- 무효화 조건: ${decision.invalidation}`);
-    lines.push(...formatEvidence(decision, scoredById));
+    lines.push(...formatEvidence(decision, scoredById, marketScope));
     lines.push(`- 촉매: ${decision.catalysts.slice(0, 3).join(", ") || "-"}`);
     lines.push(`- 리스크: ${decision.riskNotes.slice(0, 3).join(", ") || "-"}`);
     if (placeholder) {
-      lines.push("- 데이터 품질 경고: LLM 요약이 placeholder(stub/tbd) 형태입니다.");
+      lines.push("- 데이터 품질 경고: 요약 문장이 임시값 형태로 생성되었습니다.");
     }
     lines.push("");
   }
@@ -135,10 +135,13 @@ function formatDecisionSection(
 }
 
 function getKstDateStr(): string {
-  const now = new Date();
-  const kstOffset = 9 * 60 * 60 * 1000;
-  const kstDate = new Date(now.getTime() + kstOffset);
-  return kstDate.toISOString().slice(0, 10);
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  });
+  return formatter.format(new Date());
 }
 
 export function buildDailyReport(
@@ -162,22 +165,25 @@ export function buildDailyReport(
   lines.push("## 판단 요약");
   lines.push(`- 실행 스코프: ${marketScopeLabel(marketScope)} (${marketScope})`);
   lines.push(`- 총 판단 종목: ${decisions.length}`);
-  lines.push(`- 즉시 진입(BUY_NOW): ${buyNow.length}, 관망(WATCH): ${watch.length}, 회피(AVOID): ${avoid.length}`);
-  lines.push(`- 평균 신뢰도: ${(avgConfidence(decisions) * 100).toFixed(1)}%`);
-  lines.push(`- placeholder 응답 수(stub/tbd): ${placeholderCount}`);
+  lines.push(`- 즉시 진입: ${buyNow.length}, 관망: ${watch.length}, 회피: ${avoid.length}`);
+  lines.push(`- 평균 확신도: ${(avgConfidence(decisions) * 100).toFixed(1)}%`);
+  lines.push(`- 임시값 응답 수: ${placeholderCount}`);
   lines.push("");
   lines.push("## 판단 기준");
   lines.push("- 상위 스코어 시그널만 대상으로 LLM 판단을 수행합니다.");
   lines.push("- 판단 항목: 핵심 근거, 진입 트리거, 무효화 조건, 촉매, 리스크.");
-  lines.push("- 결론은 신뢰도(confidence)와 시간축(time_horizon)을 함께 기록합니다.");
+  lines.push("- 결론은 확신도(%)와 보유 기간(당일/스윙/중장기)을 함께 기록합니다.");
   if (hybrid) {
-    lines.push("- Hybrid Quant-Social: 퀀트 점수로 soft scoring을 적용하고 하드 필터로 BUY_NOW를 재검증합니다.");
+    lines.push("- 혼합 점수 방식: 숫자 근거와 시장 반응 신호를 함께 반영합니다.");
     lines.push(
-      `- 하이브리드 요약: quant=${hybrid.avgQuant.toFixed(2)}, social=${hybrid.avgSocial.toFixed(2)}, event=${hybrid.avgEvent.toFixed(2)}, contextRisk=${hybrid.avgContextRisk.toFixed(2)}`
+      `- 혼합 요약(0~1): 숫자 근거 ${hybrid.avgQuant.toFixed(2)}, 시장 반응 ${hybrid.avgSocial.toFixed(2)}, 이벤트 ${hybrid.avgEvent.toFixed(2)}, 과열 위험 ${hybrid.avgContextRisk.toFixed(2)}`
     );
+    lines.push("- 점수 해석: 0.00~0.35 약함, 0.35~0.70 보통, 0.70~1.00 강함");
     lines.push(
-      `- 강화 조건 통과: hard filter=${hybrid.hardPassCount}/${hybrid.count}, triple crown=${hybrid.triplePassCount}/${hybrid.count}`
+      `- 안전장치 통과: 기본 안전 기준 ${hybrid.hardPassCount}/${hybrid.count}, 3중 확인 ${hybrid.triplePassCount}/${hybrid.count}`
     );
+    lines.push("- 기본 안전 기준: 거래량·수급·기술 조건을 모두 만족한 경우");
+    lines.push("- 3중 확인: 시장 반응·이벤트·기본 안전 기준을 모두 만족한 경우");
   }
   lines.push("");
   lines.push(...formatDecisionSection("BUY_NOW", buyNow, scoredById, marketScope));

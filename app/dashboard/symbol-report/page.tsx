@@ -5,8 +5,8 @@ import { useEffect, useState } from "react";
 import type { SymbolReport } from "@/core/domain/types";
 import { apiRequest } from "../_components/api_client";
 import { useDashboardContext } from "../_components/dashboard_context";
-import { formatKrSymbol, useKrSymbolNameMap } from "../_components/kr_symbol_names";
-import { marketScopeLabel } from "../_components/labels";
+import { formatKrSymbol, formatUsSymbol, useKrSymbolNameMap, useUsSymbolNameMap } from "../_components/kr_symbol_names";
+import { marketScopeLabel, runStatusLabel, sourceLabel } from "../_components/labels";
 import { useAllSymbolSuggestions } from "../_components/symbol_autocomplete";
 import { trackEvent } from "../_components/telemetry";
 import { ErrorState } from "../_components/ui_primitives";
@@ -87,6 +87,10 @@ export default function SymbolReportPage() {
   }, []);
 
   const krSymbolNames = useKrSymbolNameMap(
+    [symbolReport?.symbol ?? "", ...(symbolReport?.scoredSignals ?? []).map((s) => s.symbol)],
+    token
+  );
+  const usSymbolNames = useUsSymbolNameMap(
     [symbolReport?.symbol ?? "", ...(symbolReport?.scoredSignals ?? []).map((s) => s.symbol)],
     token
   );
@@ -193,7 +197,10 @@ export default function SymbolReportPage() {
         ) : (
           <div>
             <p>
-              <strong>종목:</strong> {formatKrSymbol(symbolReport.symbol, krSymbolNames)}
+              <strong>종목:</strong>{" "}
+              {symbolReport.marketScope === "KR"
+                ? formatKrSymbol(symbolReport.symbol, krSymbolNames)
+                : formatUsSymbol(symbolReport.symbol, usSymbolNames)}
             </p>
             <p>
               <strong>시장:</strong> {marketScopeLabel(symbolReport.marketScope)}
@@ -203,14 +210,14 @@ export default function SymbolReportPage() {
             </p>
             {symbolReport.onDemandRun ? (
               <p>
-                <strong>온디맨드 실행:</strong>{" "}
-                {`${symbolReport.onDemandRun.status} (raw=${symbolReport.onDemandRun.rawCount}, scored=${symbolReport.onDemandRun.scoredCount}, decided=${symbolReport.onDemandRun.decidedCount})`}
+                <strong>수동 실행 결과:</strong>{" "}
+                {`${runStatusLabel(symbolReport.onDemandRun.status)} (수집 ${symbolReport.onDemandRun.rawCount}건, 점수화 ${symbolReport.onDemandRun.scoredCount}건, 판단 ${symbolReport.onDemandRun.decidedCount}건)`}
               </p>
             ) : null}
             <div className="source-grid">
               {Object.entries(symbolReport.sourceCounts).map(([key, value]) => (
                 <div key={key} className="source-card">
-                  <strong>{key}</strong>
+                  <strong>{sourceLabel(key)}</strong>
                   <div>{value}건</div>
                 </div>
               ))}

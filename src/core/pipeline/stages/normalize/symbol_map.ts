@@ -58,10 +58,11 @@ export function normalizeKrSymbol(symbol: string): string | null {
 
 export function extractTickerCandidates(text: string): string[] {
   const matches = new Set<string>();
-  const regex = /\$([A-Za-z]{1,5})\b|\b([A-Z]{2,5})\b(?=\s+(?:stock|shares?|calls?|puts?|buy|sell|long|short|moon|pump|dump))/g;
+  const regex =
+    /\$([A-Za-z]{1,5})\b|\((?:NASDAQ|NYSE|AMEX)[:\s]+([A-Za-z]{1,5})\)|\b(?:NASDAQ|NYSE|AMEX)[:\s]+([A-Za-z]{1,5})\b|\(([A-Za-z]{1,5})\)|\b([A-Z]{2,5})\b(?=\s+(?:stock|shares?|calls?|puts?|buy|sell|long|short|moon|pump|dump))/g;
   let match: RegExpExecArray | null;
   while ((match = regex.exec(text)) !== null) {
-    const candidate = match[1] || match[2];
+    const candidate = match[1] || match[2] || match[3] || match[4] || match[5];
     if (!candidate) continue;
     const normalized = normalizeSymbol(candidate);
     if (normalized) matches.add(normalized);

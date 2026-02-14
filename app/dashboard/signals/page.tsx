@@ -193,7 +193,7 @@ export default function SignalsPage() {
 
   function passLabel(value?: boolean): string {
     if (typeof value !== "boolean") return "-";
-    return value ? "통과" : "실패";
+    return value ? "통과" : "미통과";
   }
 
   function compactText(value: string, max = 18): string {
@@ -312,9 +312,9 @@ export default function SignalsPage() {
                   <th className="t-center">심볼</th>
                   <th className="t-right">최종 점수</th>
                   <th className="t-right">감성 점수</th>
-                  <th className="t-right">퀀트</th>
-                  <th className="t-center">하드필터</th>
-                  <th className="t-center">삼관왕</th>
+                  <th className="t-right">숫자 근거</th>
+                  <th className="t-center">기본 안전</th>
+                  <th className="t-center">3중 확인</th>
                   <th>근거</th>
                 </tr>
               </thead>
@@ -366,11 +366,11 @@ export default function SignalsPage() {
               <p><strong>점수:</strong> {selectedScored.finalScore.toFixed(3)}</p>
               <p><strong>근거:</strong> {selectedScored.reasonSummary ?? "-"}</p>
               <div className="metric-list">
-                <div className="metric-row"><span>감성/신선도/가중치</span><strong>{metricText(selectedScored.sentimentScore)} / {metricText(selectedScored.freshnessScore)} / {metricText(selectedScored.sourceWeight)}</strong></div>
-                <div className="metric-row"><span>소셜/이벤트</span><strong>{metricText(selectedScored.socialScore)} / {metricText(selectedScored.eventScore)}</strong></div>
+                <div className="metric-row"><span>감성/최신성/출처신뢰</span><strong>{metricText(selectedScored.sentimentScore)} / {metricText(selectedScored.freshnessScore)} / {metricText(selectedScored.sourceWeight)}</strong></div>
+                <div className="metric-row"><span>시장 반응/이벤트</span><strong>{metricText(selectedScored.socialScore)} / {metricText(selectedScored.eventScore)}</strong></div>
                 <div className="metric-row"><span>거래량/수급/기술</span><strong>{metricText(selectedScored.volumeScore)} / {metricText(selectedScored.flowScore)} / {metricText(selectedScored.technicalScore)}</strong></div>
-                <div className="metric-row"><span>퀀트/승수/리스크</span><strong>{metricText(selectedScored.quantScore)} / {metricText(selectedScored.quantMultiplier)} / {metricText(selectedScored.contextRiskScore)}</strong></div>
-                <div className="metric-row"><span>하드필터/삼관왕</span><strong>{passLabel(selectedScored.hardFilterPassed)} / {passLabel(selectedScored.tripleCrownPassed)}</strong></div>
+                <div className="metric-row"><span>숫자 근거/보정 계수/과열 위험</span><strong>{metricText(selectedScored.quantScore)} / {metricText(selectedScored.quantMultiplier)} / {metricText(selectedScored.contextRiskScore)}</strong></div>
+                <div className="metric-row"><span>기본 안전/3중 확인</span><strong>{passLabel(selectedScored.hardFilterPassed)} / {passLabel(selectedScored.tripleCrownPassed)}</strong></div>
               </div>
               <div className="grid grid-2">
                 <RadarPentagonChart

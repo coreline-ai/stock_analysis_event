@@ -21,7 +21,7 @@ export default function HomePage() {
           </div>
           <div className="card">
             <h3>판단</h3>
-            <p>즉시진입(BUY_NOW) / 관망(WATCH) / 회피(AVOID)를 신뢰도, 진입 조건, 무효화 조건과 함께 제공합니다.</p>
+            <p>즉시 진입 / 관망 / 회피 판단을 확신도, 진입 기준, 전략 철회 조건과 함께 제공합니다.</p>
           </div>
           <div className="card">
             <h3>리포트</h3>

@@ -8,6 +8,27 @@ import { DashboardProvider, useDashboardContext } from "./dashboard_context";
 import { trackEvent } from "./telemetry";
 import type { MarketScope } from "@/core/domain/types";
 
+interface ProgressStageDef {
+  key: string;
+  label: string;
+  weight: number;
+}
+
+interface ProgressStageView {
+  key: string;
+  label: string;
+  widthPct: number;
+  fillPct: number;
+}
+
+interface ProgressSnapshot {
+  percent: number;
+  elapsedSec: number;
+  stageLabel: string;
+  stages: ProgressStageView[];
+  stageFlowText: string;
+}
+
 const NAV_LINKS = [
   { href: "/dashboard", label: "운영 대시보드" },
   { href: "/dashboard/decisions", label: "판단 탐색" },
@@ -18,6 +39,69 @@ const NAV_LINKS = [
   { href: "/dashboard/settings", label: "설정" }
 ];
 
+const KR_PROGRESS_STAGES: ProgressStageDef[] = [
+  { key: "ticker", label: "티커 준비", weight: 0.08 },
+  { key: "gather", label: "신호 수집", weight: 0.38 },
+  { key: "normalize", label: "정규화", weight: 0.14 },
+  { key: "enrich", label: "KR 보강", weight: 0.12 },
+  { key: "score", label: "점수화", weight: 0.1 },
+  { key: "decide", label: "판단", weight: 0.12 },
+  { key: "report", label: "리포트", weight: 0.06 }
+];
+
+const US_PROGRESS_STAGES: ProgressStageDef[] = [
+  { key: "ticker", label: "티커 준비", weight: 0.1 },
+  { key: "gather", label: "신호 수집", weight: 0.45 },
+  { key: "normalize", label: "정규화", weight: 0.12 },
+  { key: "score", label: "점수화", weight: 0.12 },
+  { key: "decide", label: "판단", weight: 0.15 },
+  { key: "report", label: "리포트", weight: 0.06 }
+];
+
+function progressStagesByScope(scope: MarketScope): ProgressStageDef[] {
+  return scope === "KR" ? KR_PROGRESS_STAGES : US_PROGRESS_STAGES;
+}
+
+function expectedRunSeconds(scope: MarketScope): number {
+  if (scope === "KR") return 90;
+  if (scope === "US") return 60;
+  return 120;
+}
+
+function clamp01(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(1, value));
+}
+
+function computeProgressSnapshot(scope: MarketScope, startedAtMs: number, nowMs: number): ProgressSnapshot {
+  const elapsedMs = Math.max(0, nowMs - startedAtMs);
+  const totalMs = expectedRunSeconds(scope) * 1000;
+  const stageDefs = progressStagesByScope(scope);
+  // 98%에서 고정 후 서버 완료 응답 시 종료되도록 처리
+  const ratio = clamp01(Math.min(0.98, elapsedMs / Math.max(1, totalMs)));
+  let consumed = ratio;
+  const stages = stageDefs.map((stage) => {
+    const widthPct = Math.round(stage.weight * 1000) / 10;
+    const filledWeight = Math.max(0, Math.min(stage.weight, consumed));
+    const fillPct = stage.weight > 0 ? Math.round((filledWeight / stage.weight) * 1000) / 10 : 0;
+    consumed = Math.max(0, consumed - stage.weight);
+    return {
+      key: stage.key,
+      label: stage.label,
+      widthPct,
+      fillPct
+    };
+  });
+  const active = stages.find((stage) => stage.fillPct < 100) ?? stages[stages.length - 1];
+  return {
+    percent: Math.round(ratio * 100),
+    elapsedSec: Math.floor(elapsedMs / 1000),
+    stageLabel: active?.label ?? "진행 중",
+    stages,
+    stageFlowText: stageDefs.map((stage) => stage.label).join(" → ")
+  };
+}
+
 function ShellInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { token, setToken, llmProvider, setLlmProvider, requestRefresh, setAuthRequired, authRequired, pushToast, toasts, removeToast } =
@@ -25,10 +109,23 @@ function ShellInner({ children }: { children: React.ReactNode }) {
   const [tokenInput, setTokenInput] = useState(token);
   const [runningUS, setRunningUS] = useState(false);
   const [runningKR, setRunningKR] = useState(false);
+  const [usStartedAt, setUsStartedAt] = useState<number | null>(null);
+  const [krStartedAt, setKrStartedAt] = useState<number | null>(null);
+  const [progressTick, setProgressTick] = useState<number>(Date.now());
 
   useEffect(() => {
     setTokenInput(token);
   }, [token]);
+
+  useEffect(() => {
+    if (!runningUS && !runningKR) return;
+    const timer = window.setInterval(() => {
+      setProgressTick(Date.now());
+    }, 500);
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [runningUS, runningKR]);
 
   const tokenStateText = useMemo(() => {
     if (!token) return "저장된 토큰 없음 (로컬 개발 허용)";
@@ -58,8 +155,14 @@ function ShellInner({ children }: { children: React.ReactNode }) {
 
   async function handleRunNow(marketScope: MarketScope) {
     const strategyKey = marketScope === "KR" ? "kr_default" : marketScope === "US" ? "us_default" : "all_default";
-    if (marketScope === "US") setRunningUS(true);
-    if (marketScope === "KR") setRunningKR(true);
+    if (marketScope === "US") {
+      setRunningUS(true);
+      setUsStartedAt(Date.now());
+    }
+    if (marketScope === "KR") {
+      setRunningKR(true);
+      setKrStartedAt(Date.now());
+    }
     const res = await apiRequest<{
       runId: string;
       marketScope: MarketScope;
@@ -71,8 +174,14 @@ function ShellInner({ children }: { children: React.ReactNode }) {
       decidedCount: number;
       reportId?: string;
     }>("/api/agent/trigger", { token, method: "POST", body: { marketScope, strategyKey, llmProvider } });
-    if (marketScope === "US") setRunningUS(false);
-    if (marketScope === "KR") setRunningKR(false);
+    if (marketScope === "US") {
+      setRunningUS(false);
+      setUsStartedAt(null);
+    }
+    if (marketScope === "KR") {
+      setRunningKR(false);
+      setKrStartedAt(null);
+    }
 
     if (!res.ok) {
       if (res.status === 401) setAuthRequired(true);
@@ -116,6 +225,9 @@ function ShellInner({ children }: { children: React.ReactNode }) {
       }
     });
   }
+
+  const usProgress = runningUS && usStartedAt ? computeProgressSnapshot("US", usStartedAt, progressTick) : null;
+  const krProgress = runningKR && krStartedAt ? computeProgressSnapshot("KR", krStartedAt, progressTick) : null;
 
   return (
     <div className="dash-shell">
@@ -218,6 +330,42 @@ function ShellInner({ children }: { children: React.ReactNode }) {
             </button>
           </div>
         </header>
+        {(usProgress || krProgress) ? (
+          <section className="run-progress-wrap" aria-live="polite">
+            {usProgress ? (
+              <div className="run-progress-card">
+                <div className="list-item-head">
+                  <strong>미국 분석 진행률 {usProgress.percent}%</strong>
+                  <span className="badge-alt">{usProgress.stageLabel}</span>
+                </div>
+                <div className="run-progress-stagebar" aria-label="미국 분석 단계 진행">
+                  {usProgress.stages.map((stage) => (
+                    <div key={`US-${stage.key}`} className="run-progress-seg" style={{ width: `${stage.widthPct}%` }} title={stage.label}>
+                      <span className="run-progress-seg-fill" style={{ width: `${stage.fillPct}%` }} />
+                    </div>
+                  ))}
+                </div>
+                <p className="muted-line">경과 {usProgress.elapsedSec}초 · 구간: {usProgress.stageFlowText}</p>
+              </div>
+            ) : null}
+            {krProgress ? (
+              <div className="run-progress-card">
+                <div className="list-item-head">
+                  <strong>한국 분석 진행률 {krProgress.percent}%</strong>
+                  <span className="badge-alt">{krProgress.stageLabel}</span>
+                </div>
+                <div className="run-progress-stagebar" aria-label="한국 분석 단계 진행">
+                  {krProgress.stages.map((stage) => (
+                    <div key={`KR-${stage.key}`} className="run-progress-seg" style={{ width: `${stage.widthPct}%` }} title={stage.label}>
+                      <span className="run-progress-seg-fill" style={{ width: `${stage.fillPct}%` }} />
+                    </div>
+                  ))}
+                </div>
+                <p className="muted-line">경과 {krProgress.elapsedSec}초 · 구간: {krProgress.stageFlowText}</p>
+              </div>
+            ) : null}
+          </section>
+        ) : null}
         <main id="main-content" className="dash-content" tabIndex={-1}>
           {children}
         </main>

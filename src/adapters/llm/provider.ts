@@ -10,4 +10,4 @@ export interface LLMProvider {
   complete(req: LLMRequest): Promise<string>;
 }
 
-export type LLMProviderName = "glm" | "openai" | "gemini" | "stub";
+export type LLMProviderName = "glm" | "openai" | "gemini";

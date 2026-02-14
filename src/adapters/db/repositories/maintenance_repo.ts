@@ -29,7 +29,10 @@ export async function cleanupPlaceholderData(scope?: MarketScope): Promise<Place
     `
     DELETE FROM daily_reports
     WHERE ($1::text IS NULL OR market_scope = $1)
-      AND summary_markdown ~ 'placeholder 응답 수\\(stub/tbd\\): [1-9][0-9]*'
+      AND (
+        summary_markdown ~ 'placeholder 응답 수\\(stub/tbd\\): [1-9][0-9]*'
+        OR summary_markdown ~ '임시값 응답 수: [1-9][0-9]*'
+      )
     RETURNING id
     `,
     [normalizedScope]

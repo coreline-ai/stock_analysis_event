@@ -1,6 +1,6 @@
 import type { SignalRaw, SignalSource } from "@/core/domain/types";
 import { extractKrTickerCandidates, extractTickerCandidates, normalizeKrSymbol, normalizeSymbol } from "./symbol_map";
-import { isKnownSecTicker } from "./ticker_cache";
+import { extractSecTickerCandidatesByName, isKnownSecTicker } from "./ticker_cache";
 import { extractKrTickerCandidatesByName, hasKrTickerUniverse, isKnownKrxTicker } from "./kr_ticker_cache";
 
 export interface NormalizedSignal {
@@ -34,7 +34,7 @@ export function normalizeSignals(rawSignals: SignalRaw[]): NormalizedSignal[] {
           ...extractKrTickerCandidatesByName(baseText),
           ...extractTickerCandidates(baseText)
         ]
-      : extractTickerCandidates(baseText);
+      : [...extractTickerCandidates(baseText), ...extractSecTickerCandidatesByName(baseText)];
     const candidates =
       raw.symbolCandidates.length > 0
         ? Array.from(new Set([...raw.symbolCandidates, ...fallbackCandidates]))

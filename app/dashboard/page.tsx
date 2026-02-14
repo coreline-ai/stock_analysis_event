@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { AgentRun, Decision, DailyReport } from "@/core/domain/types";
 import { apiRequest } from "./_components/api_client";
 import { useDashboardContext } from "./_components/dashboard_context";
-import { formatKrSymbol, useKrSymbolNameMap } from "./_components/kr_symbol_names";
+import { formatKrSymbol, formatUsSymbol, useKrSymbolNameMap, useUsSymbolNameMap } from "./_components/kr_symbol_names";
 import { marketScopeLabel, runStatusLabel, sourceLabel, stageLabel, triggerLabel, verdictLabel } from "./_components/labels";
 import { trackEvent } from "./_components/telemetry";
 import { EmptyState, ErrorState, LoadingBlock } from "./_components/ui_primitives";
@@ -36,6 +36,18 @@ interface SummaryResponse {
 
 function percent(value: number): string {
   return `${Math.round(value * 100)}%`;
+}
+
+function reportDateLabel(value: string): string {
+  if (!value) return "-";
+  return value.length >= 10 ? value.slice(0, 10) : value;
+}
+
+function formatDecisionSymbol(decision: Decision, krNames: Record<string, string>, usNames: Record<string, string>): string {
+  if (decision.marketScope === "KR" || /^\d{6}$/.test(decision.symbol)) {
+    return formatKrSymbol(decision.symbol, krNames);
+  }
+  return formatUsSymbol(decision.symbol, usNames);
 }
 
 export default function DashboardCockpitPage() {
@@ -81,6 +93,10 @@ export default function DashboardCockpitPage() {
   }, [summary]);
 
   const krSymbolNames = useKrSymbolNameMap(
+    summary?.latest.decisions.map((item) => item.symbol) ?? [],
+    token
+  );
+  const usSymbolNames = useUsSymbolNameMap(
     summary?.latest.decisions.map((item) => item.symbol) ?? [],
     token
   );
@@ -194,7 +210,7 @@ export default function DashboardCockpitPage() {
               summary.latest.decisions.map((d) => (
                 <div key={d.id} className="list-item">
                   <div className="list-item-head">
-                    <strong>{formatKrSymbol(d.symbol, krSymbolNames)}</strong>
+                    <strong>{formatDecisionSymbol(d, krSymbolNames, usSymbolNames)}</strong>
                     <span className="badge">{verdictLabel(d.verdict)}</span>
                   </div>
                   <p>{d.thesisSummary}</p>
@@ -212,7 +228,7 @@ export default function DashboardCockpitPage() {
               summary.latest.reports.map((r) => (
                 <div key={r.id} className="list-item">
                   <div className="list-item-head">
-                    <strong>{new Date(r.reportDate).toISOString().slice(0, 10)}</strong>
+                    <strong>{reportDateLabel(r.reportDate)}</strong>
                     <span className="badge badge-alt">리포트</span>
                   </div>
                   <p>{r.summaryMarkdown.slice(0, 180)}...</p>

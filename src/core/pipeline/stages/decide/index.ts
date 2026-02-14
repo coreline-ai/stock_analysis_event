@@ -113,20 +113,20 @@ export async function decideSignals(
       .join("\n");
     const summary = [
       signalLines,
-      `hybrid_quant_avg=${quant.avgQuantScore.toFixed(2)}`,
-      `hybrid_social_avg=${quant.avgSocialScore.toFixed(2)}`,
-      `hybrid_event_avg=${quant.avgEventScore.toFixed(2)}`,
-      `hybrid_volume_avg=${quant.avgVolumeScore.toFixed(2)}`,
-      `hybrid_flow_avg=${quant.avgFlowScore.toFixed(2)}`,
-      `hybrid_technical_avg=${quant.avgTechnicalScore.toFixed(2)}`,
-      `hybrid_context_risk_avg=${quant.avgContextRiskScore.toFixed(2)}`,
-      `hybrid_social_layer=${quant.socialLayerPassed ? "PASS" : "FAIL"}`,
-      `hybrid_event_layer=${quant.eventLayerPassed ? "PASS" : "FAIL"}`,
-      `hybrid_volume_guard=${quant.volumeGuardPassed ? "PASS" : "FAIL"}`,
-      `hybrid_flow_guard=${quant.flowGuardPassed ? "PASS" : "FAIL"}`,
-      `hybrid_technical_guard=${quant.technicalGuardPassed ? "PASS" : "FAIL"}`,
-      `hybrid_hard_filter=${quant.hardFilterPassed ? "PASS" : "FAIL"}`,
-      `hybrid_triple_crown=${quant.tripleCrownPassed ? "PASS" : "FAIL"}`
+      `정량 종합 점수 평균=${quant.avgQuantScore.toFixed(2)}`,
+      `소셜 반응 점수 평균=${quant.avgSocialScore.toFixed(2)}`,
+      `이벤트 신호 점수 평균=${quant.avgEventScore.toFixed(2)}`,
+      `거래량 점수 평균=${quant.avgVolumeScore.toFixed(2)}`,
+      `수급 점수 평균=${quant.avgFlowScore.toFixed(2)}`,
+      `기술 신호 점수 평균=${quant.avgTechnicalScore.toFixed(2)}`,
+      `과열/맥락 리스크 평균=${quant.avgContextRiskScore.toFixed(2)}`,
+      `소셜 레이어=${quant.socialLayerPassed ? "통과" : "미통과"}`,
+      `이벤트 레이어=${quant.eventLayerPassed ? "통과" : "미통과"}`,
+      `거래량 가드=${quant.volumeGuardPassed ? "통과" : "미통과"}`,
+      `수급 가드=${quant.flowGuardPassed ? "통과" : "미통과"}`,
+      `기술 가드=${quant.technicalGuardPassed ? "통과" : "미통과"}`,
+      `강화 하드 필터=${quant.hardFilterPassed ? "통과" : "미통과"}`,
+      `삼관왕 조건=${quant.tripleCrownPassed ? "통과" : "미통과"}`
     ].join("\n");
 
     const prompt = buildDecisionPrompt({ symbol, signalSummary: summary, marketScope });
@@ -158,13 +158,13 @@ export async function decideSignals(
     const buyNowRequested = parsed.verdict === "BUY_NOW";
     const failedReasons: string[] = [];
     if (quant.hasQuantSignals && buyNowRequested) {
-      if (!quant.hardFilterPassed) failedReasons.push("하드 필터 미충족(거래량/수급/기술 관문)");
-      if (!quant.socialLayerPassed) failedReasons.push("소셜 레이어 미충족(Sentiment<=0.7)");
-      if (!quant.eventLayerPassed) failedReasons.push("이벤트 레이어 미충족(공시/뉴스 트리거 부족)");
-      if (!quant.volumeGuardPassed) failedReasons.push("거래량 가드 미충족(200% 또는 150% 기준 미달)");
-      if (!quant.flowGuardPassed) failedReasons.push("수급 가드 미충족(외국인/기관 순매수 부족)");
-      if (!quant.technicalGuardPassed) failedReasons.push("기술 가드 미충족(5일/20일선 조건 부족)");
-      if (quant.avgContextRiskScore >= 0.8) failedReasons.push("과열 리스크 높음(52주 고점/과열 신호)");
+      if (!quant.hardFilterPassed) failedReasons.push("기본 안전 기준 미충족(거래량·수급·기술)");
+      if (!quant.socialLayerPassed) failedReasons.push("시장 반응 기준 미충족(점수 0.70 미만)");
+      if (!quant.eventLayerPassed) failedReasons.push("이벤트 기준 미충족(공시/뉴스 촉매 부족)");
+      if (!quant.volumeGuardPassed) failedReasons.push("거래량 기준 미충족(급증 신호 부족)");
+      if (!quant.flowGuardPassed) failedReasons.push("수급 기준 미충족(외국인/기관 순매수 부족)");
+      if (!quant.technicalGuardPassed) failedReasons.push("기술 기준 미충족(이평선 조건 부족)");
+      if (quant.avgContextRiskScore >= 0.8) failedReasons.push("과열 위험 높음(52주 고점 근접/과열 신호)");
     }
 
     const downgradedByHybridGate = buyNowRequested && failedReasons.length > 0;
@@ -172,7 +172,7 @@ export async function decideSignals(
       ? Array.from(new Set([...parsed.risk_notes, ...failedReasons]))
       : parsed.risk_notes;
     const redFlags = downgradedByHybridGate
-      ? Array.from(new Set([...parsed.red_flags, "강화 하이브리드 게이트 미통과로 BUY_NOW 강등"]))
+      ? Array.from(new Set([...parsed.red_flags, "안전 기준 미통과로 즉시 진입이 관망으로 조정됨"]))
       : parsed.red_flags;
 
     decisions.push({
@@ -181,10 +181,10 @@ export async function decideSignals(
       confidence: downgradedByHybridGate ? Math.min(parsed.confidence, 0.59) : parsed.confidence,
       timeHorizon: parsed.time_horizon,
       thesisSummary: downgradedByHybridGate
-        ? `${parsed.thesis_summary} (강화 하이브리드 게이트 미통과로 관망 조정)`
+        ? `${parsed.thesis_summary} (핵심 안전 기준 미충족으로 관망으로 조정)`
         : parsed.thesis_summary,
       entryTrigger: downgradedByHybridGate
-        ? `삼관왕(소셜/이벤트/거래량·수급·기술) 조건 충족 시 재진입 검토. ${parsed.entry_trigger}`
+        ? `핵심 3중 확인(시장 반응/이벤트/거래량·수급·기술) 충족 시 재검토. ${parsed.entry_trigger}`
         : parsed.entry_trigger,
       invalidation: parsed.invalidation,
       riskNotes,

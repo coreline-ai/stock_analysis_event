@@ -7,8 +7,9 @@ import type { Decision, SignalScored } from "@/core/domain/types";
 import { apiRequest } from "../_components/api_client";
 import { EntryTriggerTracker } from "../_components/charts/entry_trigger_tracker";
 import { RiskHeatmapPanel } from "../_components/charts/risk_heatmap_panel";
+import { SignalEvidenceBars } from "../_components/charts/signal_evidence_bars";
 import { useDashboardContext } from "../_components/dashboard_context";
-import { formatKrSymbol, useKrSymbolNameMap } from "../_components/kr_symbol_names";
+import { formatKrSymbol, formatUsSymbol, useKrSymbolNameMap, useUsSymbolNameMap } from "../_components/kr_symbol_names";
 import { horizonLabel, marketScopeLabel, verdictLabel } from "../_components/labels";
 import { useSymbolSuggestions } from "../_components/symbol_autocomplete";
 import { trackEvent } from "../_components/telemetry";
@@ -59,6 +60,13 @@ function summarizeDecisionRisk(scoredGroup: SignalScored[]): DecisionRiskSnapsho
     flowGuardPassed: passRatio(scoredGroup, "flowGuardPassed") >= 0.5,
     technicalGuardPassed: passRatio(scoredGroup, "technicalGuardPassed") >= 0.5
   };
+}
+
+function formatDecisionSymbol(decision: Decision, krNames: Record<string, string>, usNames: Record<string, string>): string {
+  if (decision.marketScope === "KR" || /^\d{6}$/.test(decision.symbol)) {
+    return formatKrSymbol(decision.symbol, krNames);
+  }
+  return formatUsSymbol(decision.symbol, usNames);
 }
 
 export default function DecisionsPage() {
@@ -141,6 +149,10 @@ export default function DecisionsPage() {
     items.map((item) => item.symbol),
     token
   );
+  const usSymbolNames = useUsSymbolNameMap(
+    items.map((item) => item.symbol),
+    token
+  );
 
   const { items: symbolSuggestions, loading: suggestionLoading } = useSymbolSuggestions({
     query: symbol,
@@ -159,14 +171,15 @@ export default function DecisionsPage() {
       if (sym) {
         const symbolMatch = normalizeSearchText(d.symbol).includes(sym);
         const nameMatch = normalizeSearchText(krSymbolNames[d.symbol] ?? "").includes(sym);
-        if (!symbolMatch && !nameMatch) return false;
+        const usNameMatch = normalizeSearchText(usSymbolNames[d.symbol] ?? "").includes(sym);
+        if (!symbolMatch && !nameMatch && !usNameMatch) return false;
       }
       if (verdict !== "ALL" && d.verdict !== verdict) return false;
       if (horizon !== "ALL" && d.timeHorizon !== horizon) return false;
       if (d.confidence < minConfidence) return false;
       return true;
     });
-  }, [items, symbol, verdict, horizon, minConfidence, krSymbolNames]);
+  }, [items, symbol, verdict, horizon, minConfidence, krSymbolNames, usSymbolNames]);
 
   useEffect(() => {
     setPage(1);
@@ -190,11 +203,15 @@ export default function DecisionsPage() {
   }, [scoredItems]);
   const decisionRisk = useMemo(() => {
     if (!selected) return null;
-    const scoredGroup = selected.sourcesUsed
-      .map((sourceId) => scoredById.get(sourceId))
-      .filter((item): item is SignalScored => Boolean(item));
+    const scoredGroup = selected.sourcesUsed.map((sourceId) => scoredById.get(sourceId)).filter((item): item is SignalScored => Boolean(item));
     if (scoredGroup.length === 0) return null;
     return summarizeDecisionRisk(scoredGroup);
+  }, [selected, scoredById]);
+  const selectedScoredSignals = useMemo(() => {
+    if (!selected) return [];
+    return selected.sourcesUsed
+      .map((sourceId) => scoredById.get(sourceId))
+      .filter((item): item is SignalScored => Boolean(item));
   }, [selected, scoredById]);
 
   if (loading) return <LoadingBlock label="판단 데이터를 불러오는 중..." />;
@@ -249,7 +266,7 @@ export default function DecisionsPage() {
             </select>
           </label>
           <label>
-            타임 호라이즌
+            보유 기간
             <select value={horizon} onChange={(e) => setHorizon(e.target.value)}>
               <option value="ALL">전체</option>
               <option value="intraday">당일</option>
@@ -283,7 +300,7 @@ export default function DecisionsPage() {
                 onClick={() => setSelectedId(d.id ?? "")}
               >
                 <div className="list-item-head">
-                  <strong>{formatKrSymbol(d.symbol, krSymbolNames)}</strong>
+                  <strong>{formatDecisionSymbol(d, krSymbolNames, usSymbolNames)}</strong>
                   <span className="badge">{verdictLabel(d.verdict)}</span>
                 </div>
                 <p>시장: {marketScopeLabel(d.marketScope)}</p>
@@ -315,14 +332,15 @@ export default function DecisionsPage() {
             <p>목록에서 판단을 선택하세요.</p>
           ) : (
             <div className="detail-stack">
-              <p><strong>심볼:</strong> {formatKrSymbol(selected.symbol, krSymbolNames)}</p>
+              <p><strong>심볼:</strong> {formatDecisionSymbol(selected, krSymbolNames, usSymbolNames)}</p>
               <p><strong>시장:</strong> {marketScopeLabel(selected.marketScope)}</p>
               <p><strong>판단:</strong> {verdictLabel(selected.verdict)}</p>
               <p><strong>신뢰도:</strong> {Math.round(selected.confidence * 100)}%</p>
-              <p><strong>호라이즌:</strong> {horizonLabel(selected.timeHorizon)}</p>
+              <p><strong>보유 기간:</strong> {horizonLabel(selected.timeHorizon)}</p>
               <p><strong>핵심 근거:</strong> {selected.thesisSummary}</p>
               <p><strong>진입 트리거:</strong> {selected.entryTrigger}</p>
               <EntryTriggerTracker symbol={selected.symbol} entryTrigger={selected.entryTrigger} token={token} />
+              {selectedScoredSignals.length > 0 ? <SignalEvidenceBars signals={selectedScoredSignals} /> : null}
               {decisionRisk ? (
                 <RiskHeatmapPanel
                   contextRiskScore={decisionRisk.contextRiskScore}

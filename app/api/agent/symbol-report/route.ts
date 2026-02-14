@@ -11,6 +11,9 @@ import type { LLMProviderName } from "@/adapters/llm/provider";
 import { defaultStrategyForScope } from "@/core/pipeline/strategy_keys";
 import { runPipeline } from "@/core/pipeline/run_pipeline";
 import { normalizeKrSymbol, normalizeSymbol } from "@/core/pipeline/stages/normalize/symbol_map";
+import { lookupKrTickerName } from "@/core/pipeline/stages/normalize/kr_ticker_cache";
+import { lookupSecTickerName } from "@/core/pipeline/stages/normalize/ticker_cache";
+import { horizonLabelKo, marketScopeLabelKo, verdictLabelKo } from "@/core/presentation/terms";
 
 const MAX_LIMIT = 200;
 
@@ -52,19 +55,38 @@ function parseProvider(value: string | null): LLMProviderName | null {
   return null;
 }
 
-function buildSummary(decision: SymbolReport["decision"], scored: SignalScored[], raw: SignalRaw[]): string {
+function formatSymbolLabel(symbol: string, scope: MarketScope): string {
+  if (scope === "KR" || /^\d{6}$/.test(symbol)) {
+    const name = lookupKrTickerName(symbol);
+    return name ? `${symbol} (${name})` : symbol;
+  }
+  const upper = symbol.toUpperCase();
+  const name = lookupSecTickerName(upper);
+  return name ? `${upper} (${name})` : upper;
+}
+
+function buildSummary(
+  decision: SymbolReport["decision"],
+  scored: SignalScored[],
+  raw: SignalRaw[],
+  scope: MarketScope,
+  symbol: string
+): string {
+  const symbolLabel = formatSymbolLabel(symbol, scope);
   const lines: string[] = [];
   lines.push(`# 개별 종목 리포트`);
+  lines.push(`- 종목: ${symbolLabel}`);
+  lines.push(`- 시장: ${marketScopeLabelKo(scope)}`);
   lines.push("");
   if (decision) {
     lines.push(`## 판단`);
-    lines.push(`- verdict: ${decision.verdict}`);
-    lines.push(`- confidence: ${(decision.confidence * 100).toFixed(1)}%`);
-    lines.push(`- time_horizon: ${decision.timeHorizon}`);
-    lines.push(`- thesis: ${decision.thesisSummary}`);
-    lines.push(`- entry_trigger: ${decision.entryTrigger}`);
-    lines.push(`- invalidation: ${decision.invalidation}`);
-    if (decision.riskNotes?.length) lines.push(`- risks: ${decision.riskNotes.join(", ")}`);
+    lines.push(`- 결과: ${verdictLabelKo(decision.verdict)}`);
+    lines.push(`- 확신도: ${(decision.confidence * 100).toFixed(1)}%`);
+    lines.push(`- 보유 기간: ${horizonLabelKo(decision.timeHorizon)}`);
+    lines.push(`- 핵심 근거: ${decision.thesisSummary}`);
+    lines.push(`- 진입 기준: ${decision.entryTrigger}`);
+    lines.push(`- 전략 철회 조건: ${decision.invalidation}`);
+    if (decision.riskNotes?.length) lines.push(`- 주의할 점: ${decision.riskNotes.join(", ")}`);
   } else {
     lines.push("## 판단");
     lines.push("- 아직 판단 데이터가 없습니다.");
@@ -72,17 +94,20 @@ function buildSummary(decision: SymbolReport["decision"], scored: SignalScored[]
   lines.push("");
   if (scored.length > 0) {
     const top = scored.slice(0, 5);
-    lines.push("## 상위 스코어 신호");
+    lines.push("## 상위 신호 점수");
+    lines.push("- 점수 해석: 0.00~0.35 약함, 0.35~0.70 보통, 0.70~1.00 강함, 1.00~1.50 매우 강함");
     for (const s of top) {
-      lines.push(`- score=${s.finalScore.toFixed(3)} sentiment=${s.sentimentScore.toFixed(2)} freshness=${s.freshnessScore.toFixed(2)} sourceWeight=${s.sourceWeight.toFixed(2)}`);
-      if (s.reasonSummary) lines.push(`  reason: ${s.reasonSummary}`);
+      lines.push(
+        `- 점수=${s.finalScore.toFixed(3)} (감성=${s.sentimentScore.toFixed(2)}, 최신성=${s.freshnessScore.toFixed(2)}, 출처신뢰=${s.sourceWeight.toFixed(2)})`
+      );
+      if (s.reasonSummary) lines.push(`  - 상세 근거: ${s.reasonSummary}`);
     }
   } else {
-    lines.push("## 상위 스코어 신호");
+    lines.push("## 상위 신호 점수");
     lines.push("- 스코어 신호가 없습니다.");
   }
   lines.push("");
-  lines.push(`## 원시 신호 개수: ${raw.length}`);
+  lines.push(`## 수집 신호 개수: ${raw.length}`);
   return lines.join("\n");
 }
 
@@ -149,7 +174,7 @@ export async function GET(req: NextRequest) {
       symbol,
       marketScope: resolveScope(scope),
       generatedAt: new Date().toISOString(),
-      summaryMarkdown: buildSummary(decision, dedupedScored, raw),
+      summaryMarkdown: buildSummary(decision, dedupedScored, raw, scope, symbol),
       decision,
       scoredSignals: dedupedScored,
       rawSignals: raw,

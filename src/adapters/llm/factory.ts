@@ -3,10 +3,8 @@ import type { LLMProvider, LLMProviderName } from "./provider";
 import { createGLMProvider } from "./glm";
 import { createOpenAIProvider } from "./openai";
 import { createGeminiProvider } from "./gemini";
-import { createStubProvider } from "./stub";
 
-const REAL_PROVIDER_NAMES: LLMProviderName[] = ["glm", "openai", "gemini"];
-const ALL_PROVIDER_NAMES: LLMProviderName[] = [...REAL_PROVIDER_NAMES, "stub"];
+const ALL_PROVIDER_NAMES: LLMProviderName[] = ["glm", "openai", "gemini"];
 
 function parseProviderName(input: unknown): LLMProviderName | null {
   if (typeof input !== "string") return null;
@@ -22,7 +20,7 @@ export function createLLMProviderFromEnv(providerOverride?: LLMProviderName | nu
   const configured = parseProviderName(providerOverride) ?? parseProviderName(getEnv("LLM_PROVIDER"));
   const providerName = configured ?? (process.env.GLM_API_KEY ? "glm" : process.env.OPENAI_API_KEY ? "openai" : null);
 
-  if (!providerName || !REAL_PROVIDER_NAMES.includes(providerName)) {
+  if (!providerName || !ALL_PROVIDER_NAMES.includes(providerName)) {
     throw new Error("Missing required env: LLM_PROVIDER(glm|openai|gemini)");
   }
 
@@ -33,9 +31,6 @@ export function createLLMProviderFromEnv(providerOverride?: LLMProviderName | nu
       return createOpenAIProvider();
     case "gemini":
       return createGeminiProvider();
-    case "stub":
-      if (process.env.NODE_ENV === "test") return createStubProvider();
-      throw new Error("invalid_request");
     default:
       throw new Error(`Unsupported LLM_PROVIDER: ${providerName}`);
   }

@@ -3,7 +3,7 @@ import { detectSentiment } from "@/core/pipeline/stages/score/sentiment";
 import { detectSentimentKr } from "@/core/pipeline/stages/score/sentiment_kr";
 import { calculateFreshness } from "@/core/pipeline/stages/score/freshness";
 import { extractTickerCandidates, normalizeKrSymbol, normalizeSymbol } from "@/core/pipeline/stages/normalize/symbol_map";
-import { extractKrTickerCandidatesByName } from "@/core/pipeline/stages/normalize/kr_ticker_cache";
+import { extractKrTickerCandidatesByName, primeKrTickerCache } from "@/core/pipeline/stages/normalize/kr_ticker_cache";
 import { computeKrQuoteSnapshot } from "@/core/pipeline/stages/normalize/kr_quote_enrichment";
 import { parseRssItems } from "@/core/pipeline/stages/gather/news";
 import { parseAtom } from "@/core/pipeline/stages/gather/sec";
@@ -46,11 +46,18 @@ function testTickerExtract() {
   const candidates = extractTickerCandidates("I like $AAPL and $TSLA");
   assert.ok(candidates.includes("AAPL"));
   assert.ok(candidates.includes("TSLA"));
+  const fromExchangePattern = extractTickerCandidates("NVIDIA (NASDAQ: NVDA) and Tesla (TSLA) rallied");
+  assert.ok(fromExchangePattern.includes("NVDA"));
+  assert.ok(fromExchangePattern.includes("TSLA"));
   assert.equal(normalizeSymbol("aapl"), "AAPL");
   assert.equal(normalizeSymbol("$$"), null);
 }
 
 function testKrTickerNameExtract() {
+  primeKrTickerCache([
+    { code: "005930", name: "삼성전자" },
+    { code: "000660", name: "SK하이닉스" }
+  ]);
   const symbols = extractKrTickerCandidatesByName("삼성전자와 SK하이닉스 동반 강세");
   assert.ok(symbols.includes("005930"));
   assert.ok(symbols.includes("000660"));
@@ -113,6 +120,21 @@ function testScoring() {
   assert.ok(scored[0]?.finalScore !== undefined);
 }
 
+function testUsEventScoringNonZero() {
+  const normalized = [
+    {
+      rawId: "us-1",
+      source: "sec",
+      symbol: "AAPL",
+      text: "Apple filed 8-K after earnings release and updated guidance",
+      publishedAt: new Date().toISOString()
+    }
+  ];
+  const scored = scoreSignals(normalized as any);
+  assert.equal(scored.length, 1);
+  assert.ok((scored[0]?.finalScore ?? 0) > 0);
+}
+
 function testDecisionSchema() {
   const valid = {
     verdict: "BUY_NOW",
@@ -133,7 +155,7 @@ function testDecisionSchema() {
 
 function testPromptScopeSplit() {
   const us = buildDecisionPrompt({ symbol: "AAPL", signalSummary: "score=0.8 strong momentum", marketScope: "US" });
-  assert.ok(us.system.includes("US market research analyst"));
+  assert.ok(us.system.includes("미국 주식시장 리서치 애널리스트"));
   assert.ok(us.user.includes("MARKET: US"));
 
   const kr = buildDecisionPrompt({ symbol: "005930", signalSummary: "score=0.8 외국인 순매수", marketScope: "KR" });
@@ -432,6 +454,7 @@ async function run() {
   testRssParse();
   testAtomParse();
   testScoring();
+  testUsEventScoringNonZero();
   testDecisionSchema();
   testPromptScopeSplit();
   testKrHybridQuantAnalysis();
