@@ -136,10 +136,10 @@ export default function SymbolReportPage() {
     <div className="grid grid-2">
       <section className="card">
         <div className="symbol-report-header">
-          <h3>개별 종목 실시간 리포트</h3>
-          <div className="symbol-search-help">심볼 또는 한글 종목명을 입력하세요.</div>
+          <h3>개별 종목 리포트</h3>
+          <div className="symbol-search-help">티커 또는 한글 종목명을 입력하세요.</div>
         </div>
-        <div className="button-row" style={{ marginTop: 10 }}>
+        <div className="button-row mt-10">
           <label>
             시장
             <select value={scope} onChange={(e) => setScope(e.target.value as ScopeValue)}>
@@ -149,7 +149,7 @@ export default function SymbolReportPage() {
             </select>
           </label>
         </div>
-        <div className="symbol-search-stack" style={{ marginTop: 10 }}>
+        <div className="symbol-search-stack mt-10">
           <div className="symbol-search-wrap">
             <input
               value={symbolQuery}
@@ -176,7 +176,7 @@ export default function SymbolReportPage() {
             ) : null}
           </div>
           <button type="button" onClick={() => void runSymbolReport(symbolQuery)} disabled={symbolLoading}>
-            {symbolLoading ? "생성 중..." : "종목 리포트 생성"}
+            {symbolLoading ? "생성 중..." : "리포트 생성"}
           </button>
           <div className="symbol-search-quick">
             <span className="signal-chip">예시</span>
@@ -222,7 +222,7 @@ export default function SymbolReportPage() {
                 </div>
               ))}
             </div>
-            <div className="markdown-box" style={{ marginTop: 12 }}>
+            <div className="markdown-box mt-12">
               {symbolReport.summaryMarkdown}
             </div>
           </div>

@@ -9,7 +9,7 @@ export default function HomePage() {
           <span className="pill">실거래 실행 없음</span>
           <span className="pill">Vercel 배포 준비</span>
         </div>
-        <h1 className="hero-title">시그널·타이밍 리서치 엔진</h1>
+        <h1 className="hero-title">리서치 시그널 분석 엔진</h1>
         <p className="hero-subtitle">
           브로커 실행 없이 시그널 수집, 점수화, 판단 요약을 자동화합니다. 리서치 품질의 타이밍 인사이트를
           제공합니다.
@@ -24,7 +24,7 @@ export default function HomePage() {
             <p>즉시 진입 / 관망 / 회피 판단을 확신도, 진입 기준, 전략 철회 조건과 함께 제공합니다.</p>
           </div>
           <div className="card">
-            <h3>리포트</h3>
+            <h3>분석 리포트</h3>
             <p>테마와 리스크를 포함한 일일 요약을 제공하며 대시보드 검토 및 내보내기를 지원합니다.</p>
           </div>
         </div>
@@ -38,7 +38,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="grid grid-2" style={{ marginTop: 28 }}>
+      <section className="grid grid-2 mt-28">
         <div className="card">
           <h3>빠른 링크</h3>
           <p>/api/health — 상태 확인</p>

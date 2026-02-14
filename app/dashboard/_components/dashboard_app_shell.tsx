@@ -30,12 +30,12 @@ interface ProgressSnapshot {
 }
 
 const NAV_LINKS = [
-  { href: "/dashboard", label: "운영 대시보드" },
-  { href: "/dashboard/decisions", label: "판단 탐색" },
-  { href: "/dashboard/reports", label: "리포트" },
-  { href: "/dashboard/symbol-report", label: "종목 리포트" },
+  { href: "/dashboard", label: "운영 현황" },
+  { href: "/dashboard/decisions", label: "판단 분석" },
+  { href: "/dashboard/reports", label: "일일 리포트" },
+  { href: "/dashboard/symbol-report", label: "개별 종목 리포트" },
   { href: "/dashboard/runs", label: "실행 이력" },
-  { href: "/dashboard/signals", label: "신호 탐색" },
+  { href: "/dashboard/signals", label: "신호 분석" },
   { href: "/dashboard/settings", label: "설정" }
 ];
 
@@ -237,7 +237,7 @@ function ShellInner({ children }: { children: React.ReactNode }) {
       <aside className="dash-sidebar">
         <div className="dash-brand">
           <h2>리서치 엔진</h2>
-          <p>리서치 전용</p>
+          <p>자동 분석 대시보드</p>
         </div>
 
         <nav className="dash-nav" aria-label="대시보드 내비게이션">
@@ -297,7 +297,7 @@ function ShellInner({ children }: { children: React.ReactNode }) {
             <div className="pill-row">
               <span className="pill">리서치 전용</span>
               <span className="pill">실거래 실행 없음</span>
-              <span className="pill">GUI 사용 가능</span>
+              <span className="pill">수동 실행 기반</span>
               <span className="pill">LLM: {llmProvider.toUpperCase()}</span>
             </div>
           </div>

@@ -108,8 +108,8 @@ export default function DashboardCockpitPage() {
   return (
     <div className="dash-grid">
       <section className="hero">
-        <h1 className="hero-title">운영 대시보드</h1>
-        <p className="hero-subtitle">실행 상태, 판단 결과, 신호 처리량을 한눈에 확인합니다.</p>
+        <h1 className="hero-title">운영 현황</h1>
+        <p className="hero-subtitle">실행 상태, 판단 결과, 처리량을 한눈에 확인합니다.</p>
         <div className="grid grid-3">
           <div className="card kpi">
             <span className="badge">{verdictLabel("BUY_NOW")}</span>

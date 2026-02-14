@@ -13,6 +13,11 @@
   --shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
   --chart-card-padding: 12px;
   --chart-mini-min-width: 90px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
 }
 
 * {
@@ -29,6 +34,7 @@ body {
     radial-gradient(circle at 80% 0%, rgba(91, 140, 255, 0.18), transparent 45%),
     linear-gradient(160deg, var(--bg-0), var(--bg-1) 45%, var(--bg-2));
   font-family: "IBM Plex Sans", sans-serif;
+  line-height: 1.5;
 }
 
 a {
@@ -160,6 +166,7 @@ a {
   border-radius: 14px;
   border: 1px solid var(--border);
   background: rgba(10, 12, 20, 0.7);
+  min-width: 0;
 }
 
 .badge {
@@ -186,7 +193,8 @@ a {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
 
@@ -195,13 +203,15 @@ button {
 }
 
 input,
-select {
+select,
+textarea {
   width: 100%;
   border: 1px solid var(--border);
   background: rgba(10, 12, 20, 0.8);
   color: var(--text);
   border-radius: 10px;
   padding: 10px 12px;
+  max-width: 100%;
 }
 
 .button-row {
@@ -209,6 +219,15 @@ select {
   flex-wrap: wrap;
   gap: 10px;
   margin-top: 10px;
+  min-width: 0;
+}
+
+.button-row label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.88rem;
+  min-width: 120px;
 }
 
 .link-button,
@@ -254,6 +273,7 @@ button {
   min-height: 100vh;
   display: grid;
   grid-template-columns: 280px 1fr;
+  min-width: 0;
 }
 
 .skip-link {
@@ -278,6 +298,10 @@ button {
   display: flex;
   flex-direction: column;
   gap: 18px;
+  position: sticky;
+  top: 0;
+  max-height: 100vh;
+  overflow: auto;
 }
 
 .dash-brand h2 {
@@ -336,6 +360,7 @@ button {
 
 .dash-main {
   padding: 18px 24px 48px;
+  min-width: 0;
 }
 
 .dash-header {
@@ -349,6 +374,7 @@ button {
 .dash-content {
   display: grid;
   gap: 16px;
+  min-width: 0;
 }
 
 .run-progress-wrap {
@@ -441,9 +467,21 @@ button {
 
 .list-item-head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.list-item-head > * {
+  min-width: 0;
+}
+
+.list-item-head .badge,
+.list-item-head .badge-alt,
+.list-item-head .badge-red {
+  flex-shrink: 0;
 }
 
 .as-button {
@@ -479,10 +517,23 @@ button {
 .metric-row {
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  flex-wrap: wrap;
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 8px 10px;
   background: rgba(255, 255, 255, 0.02);
+}
+
+.metric-row span {
+  min-width: 0;
+  color: var(--muted);
+}
+
+.metric-row strong {
+  text-align: right;
+  word-break: break-word;
 }
 
 .chart-card {
@@ -499,6 +550,8 @@ button {
   justify-content: space-between;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
 }
 
 .chart-head h4 {
@@ -539,6 +592,11 @@ button {
   margin: 0;
   color: var(--muted);
   font-size: 0.88rem;
+}
+
+.muted-sub {
+  opacity: 0.72;
+  font-size: 0.8em;
 }
 
 .stacked-bar {
@@ -701,7 +759,7 @@ button {
 
 .symbol-search-wrap {
   position: relative;
-  min-width: 220px;
+  min-width: 180px;
   flex: 1;
   max-width: 420px;
 }
@@ -816,11 +874,11 @@ button {
 }
 
 .table-wrap-raw {
-  overflow-x: hidden;
+  overflow-x: auto;
 }
 
 .table.table-raw {
-  min-width: 1000px;
+  min-width: 860px;
   table-layout: fixed;
 }
 
@@ -923,6 +981,7 @@ button {
   background: rgba(0, 0, 0, 0.22);
   white-space: pre-wrap;
   word-break: break-word;
+  overflow: auto;
 }
 
 .markdown-box {
@@ -931,8 +990,23 @@ button {
   border-radius: 12px;
   padding: 14px;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  overflow: auto;
   line-height: 1.55;
   background: rgba(0, 0, 0, 0.22);
+}
+
+.mt-10 {
+  margin-top: 10px;
+}
+
+.mt-12 {
+  margin-top: 12px;
+}
+
+.mt-28 {
+  margin-top: 28px;
 }
 
 .plain-list {
@@ -1033,10 +1107,36 @@ button {
   .dash-sidebar {
     border-right: none;
     border-bottom: 1px solid var(--border);
+    position: static;
+    max-height: none;
+    overflow: visible;
   }
 
   .dash-main {
     padding: 14px 14px 30px;
+  }
+
+  .dash-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .dash-header-actions {
+    width: 100%;
+  }
+
+  .inline-select {
+    width: 100%;
+  }
+
+  .inline-select select {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .symbol-search-wrap {
+    min-width: 0;
+    max-width: none;
   }
 
   :root {
@@ -1047,11 +1147,36 @@ button {
   .chart-head h4 {
     font-size: 0.9rem;
   }
+
+  .table.table-raw {
+    min-width: 760px;
+  }
 }
 
 @media (max-width: 640px) {
   .grid-2 {
     grid-template-columns: 1fr;
+  }
+
+  .hero {
+    padding: 22px;
+    border-radius: 18px;
+  }
+
+  .card {
+    padding: 14px;
+  }
+
+  .button-row > * {
+    flex: 1 1 100%;
+  }
+
+  .table {
+    min-width: 680px;
+  }
+
+  .table.table-raw {
+    min-width: 680px;
   }
 
   .mini-grid {

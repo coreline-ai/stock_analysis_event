@@ -2,7 +2,6 @@
   "name": "deepstock-research-only",
   "private": true,
   "version": "0.1.0",
-  "type": "module",
   "scripts": {
     "dev": "NEXT_DIST_DIR=.next-dev next dev",
     "dev:3333": "NEXT_DIST_DIR=.next-dev next dev -p 3333",

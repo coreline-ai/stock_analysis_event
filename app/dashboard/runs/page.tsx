@@ -176,7 +176,7 @@ export default function RunsPage() {
           ))}
         </div>
         {visibleCount < filtered.length ? (
-          <div className="button-row" style={{ marginTop: 10 }}>
+          <div className="button-row mt-10">
             <button type="button" onClick={() => setVisibleCount((prev) => prev + 60)}>
               실행 이력 더 보기
             </button>

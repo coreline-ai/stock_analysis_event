@@ -12,7 +12,7 @@ function seedToken(token: string) {
 
 async function waitDashboardLoaded(page: Page) {
   await page.goto(`${BASE_URL}/dashboard`, { waitUntil: "domcontentloaded" });
-  await page.getByText("운영 콕핏").waitFor({ timeout: 30_000 });
+  await page.getByText("운영 현황").waitFor({ timeout: 30_000 });
 }
 
 async function runA11y(page: Page, label: string) {
@@ -67,12 +67,17 @@ async function runScenarioE2E() {
   await page.getByLabel("API 토큰 입력").fill(TOKEN);
   await page.getByRole("button", { name: "저장" }).click();
 
-  async function waitTriggerOutcome(timeoutMs: number): Promise<"toast" | "auth"> {
+  async function waitTriggerOutcome(timeoutMs: number): Promise<"toast" | "auth" | "progress"> {
     const authModal = page.getByText("인증 필요");
+    const progressCard = page.locator(".run-progress-card").first();
     const outcome = await Promise.race([
       authModal
         .waitFor({ timeout: timeoutMs })
         .then(() => "auth" as const)
+        .catch(() => "none" as const),
+      progressCard
+        .waitFor({ timeout: timeoutMs })
+        .then(() => "progress" as const)
         .catch(() => "none" as const),
       page
         .waitForSelector(".toast.success, .toast.info, .toast.error", { timeout: timeoutMs })
@@ -83,8 +88,9 @@ async function runScenarioE2E() {
       await page.getByRole("button", { name: "닫기" }).click();
       return "auth";
     }
+    if (outcome === "progress") return "progress";
     if (outcome === "toast") return "toast";
-    throw new Error("Neither auth modal nor toast appeared after trigger");
+    throw new Error("Neither auth modal, progress, nor toast appeared after trigger");
   }
 
   await page.getByRole("button", { name: /미국 분석 실행/ }).click();
@@ -126,7 +132,7 @@ async function runScenarioE2E() {
   await waitTriggerOutcome(30_000);
 
   await page.goto(`${BASE_URL}/dashboard/signals?tab=scored`);
-  await page.getByRole("button", { name: "스코어 신호", exact: true }).click();
+  await page.getByRole("button", { name: "점수 데이터", exact: true }).click();
   const hasScoredRows = await page
     .waitForSelector("table tbody tr", { timeout: 20_000 })
     .then(() => true)
@@ -135,7 +141,7 @@ async function runScenarioE2E() {
     await page.locator("table tbody tr").first().click();
     await page.getByText("신호-판단 추적").waitFor({ timeout: 20_000 });
   } else {
-    await page.getByText("테이블에서 스코어 신호를 선택하세요.").waitFor({ timeout: 20_000 });
+    await page.getByText("테이블에서 점수 데이터를 선택하세요.").waitFor({ timeout: 20_000 });
   }
 
   await context.close();

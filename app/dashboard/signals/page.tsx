@@ -211,7 +211,7 @@ export default function SignalsPage() {
     <div className="dash-grid">
       <section className="card">
         <div className="list-item-head">
-          <h3>신호 탐색기</h3>
+          <h3>신호 분석</h3>
           <div className="button-row">
             <label>
               시장
@@ -246,21 +246,21 @@ export default function SignalsPage() {
           </div>
         </div>
         <div className="button-row">
-          <button type="button" className={tab === "raw" ? "" : "ghost"} onClick={() => setTab("raw")}>
-            원시 신호
-          </button>
-          <button type="button" className={tab === "scored" ? "" : "ghost"} onClick={() => setTab("scored")}>
-            스코어 신호
-          </button>
-        </div>
+            <button type="button" className={tab === "raw" ? "" : "ghost"} onClick={() => setTab("raw")}>
+              원시 데이터
+            </button>
+            <button type="button" className={tab === "scored" ? "" : "ghost"} onClick={() => setTab("scored")}>
+              점수 데이터
+            </button>
+          </div>
       </section>
 
       {tab === "raw" ? (
         <section className="card">
-          <h3>원시 신호 ({filteredRaw.length})</h3>
-          <div className="table-wrap table-wrap-raw" role="region" aria-label="원시 신호 테이블 영역" tabIndex={0}>
+          <h3>원시 데이터 ({filteredRaw.length})</h3>
+          <div className="table-wrap table-wrap-raw" role="region" aria-label="원시 데이터 테이블 영역" tabIndex={0}>
             <table className="table table-raw">
-              <caption className="sr-only">원시 신호 테이블</caption>
+              <caption className="sr-only">원시 데이터 테이블</caption>
               <thead>
                 <tr>
                   <th className="t-center">소스</th>
@@ -294,19 +294,19 @@ export default function SignalsPage() {
             </table>
           </div>
           {visibleRawCount < filteredRaw.length ? (
-            <div className="button-row" style={{ marginTop: 10 }}>
+            <div className="button-row mt-10">
               <button type="button" onClick={() => setVisibleRawCount((prev) => prev + 80)}>
-                원시 신호 더 보기
+                원시 데이터 더 보기
               </button>
             </div>
           ) : null}
         </section>
       ) : (
         <section className="card">
-          <h3>스코어 신호 ({filteredScored.length})</h3>
-          <div className="table-wrap" role="region" aria-label="스코어 신호 테이블 스크롤 영역" tabIndex={0}>
+          <h3>점수 데이터 ({filteredScored.length})</h3>
+          <div className="table-wrap" role="region" aria-label="점수 데이터 테이블 스크롤 영역" tabIndex={0}>
             <table className="table">
-              <caption className="sr-only">스코어 신호 테이블</caption>
+              <caption className="sr-only">점수 데이터 테이블</caption>
               <thead>
                 <tr>
                   <th className="t-center">심볼</th>
@@ -325,7 +325,7 @@ export default function SignalsPage() {
                     className={selectedScored?.id === s.id ? "table-row-selected" : ""}
                     onClick={() => setSelectedScoredId(s.id ?? "")}
                     tabIndex={0}
-                    aria-label={`스코어 신호 선택 ${formatKrSymbol(s.symbol, krSymbolNames)}`}
+                    aria-label={`점수 데이터 선택 ${formatKrSymbol(s.symbol, krSymbolNames)}`}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
@@ -346,9 +346,9 @@ export default function SignalsPage() {
             </table>
           </div>
           {visibleScoredCount < filteredScored.length ? (
-            <div className="button-row" style={{ marginTop: 10 }}>
+            <div className="button-row mt-10">
               <button type="button" onClick={() => setVisibleScoredCount((prev) => prev + 80)}>
-                스코어 신호 더 보기
+                점수 데이터 더 보기
               </button>
             </div>
           ) : null}
@@ -359,7 +359,7 @@ export default function SignalsPage() {
         <section className="card">
           <h3>신호-판단 추적</h3>
           {!selectedScored ? (
-            <p>테이블에서 스코어 신호를 선택하세요.</p>
+            <p>테이블에서 점수 데이터를 선택하세요.</p>
           ) : (
             <div className="detail-stack">
               <p><strong>선택 심볼:</strong> {formatKrSymbol(selectedScored.symbol, krSymbolNames)}</p>

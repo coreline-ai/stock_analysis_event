@@ -53,7 +53,7 @@ export function RiskHeatmapPanel(props: RiskHeatmapPanelProps) {
         <div className="heatmap-marker" style={{ left: `${risk * 100}%` }} />
       </div>
       <p className="muted-line">
-        종합 리스크: {risk.toFixed(2)} <span style={{ opacity: 0.7, fontSize: "0.8em" }}>(컨텍스트: {contextRisk.toFixed(2)})</span>
+        종합 리스크: {risk.toFixed(2)} <span className="muted-sub">(컨텍스트: {contextRisk.toFixed(2)})</span>
       </p>
       <div className="tag-row">
         {tags.map((tag) => (

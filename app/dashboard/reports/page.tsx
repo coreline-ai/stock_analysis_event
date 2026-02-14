@@ -149,7 +149,7 @@ export default function ReportsPage() {
     <div className="grid grid-2">
       <section className="card">
         <div className="list-item-head">
-          <h3>리포트 목록 ({filtered.length})</h3>
+          <h3>일일 리포트 목록 ({filtered.length})</h3>
           <div className="button-row">
             <label>
               시장
@@ -186,7 +186,7 @@ export default function ReportsPage() {
           ))}
         </div>
         {visibleCount < filtered.length ? (
-          <div className="button-row" style={{ marginTop: 10 }}>
+          <div className="button-row mt-10">
             <button type="button" onClick={() => setVisibleCount((prev) => prev + 40)}>
               리포트 더 보기
             </button>
@@ -200,7 +200,7 @@ export default function ReportsPage() {
         ) : (
           <>
             <div className="list-item-head">
-              <h3>{reportDateLabel(selected.reportDate)} 리포트</h3>
+              <h3>{reportDateLabel(selected.reportDate)} 일일 리포트</h3>
               <div className="button-row">
                 <button type="button" onClick={() => downloadReport("json")}>
                   JSON 다운로드
