@@ -10,6 +10,10 @@
 
 <br />
 
+<p align="center">
+<img width="60%" height="60%" alt="스크린샷 2026-02-14 오후 2 44 56" src="https://github.com/user-attachments/assets/724dd0e3-718c-4386-8e67-1f21359456fe" />
+</p>
+
 <div align="center">
   <img src="https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" />
   <img src="https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white" alt="Next.js" />
