@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { assertApiAuth } from "@/security/auth";
-import { assertNoForbiddenEnv } from "@/config/runtime";
+import { assertNoForbiddenEnv, getNumberEnv } from "@/config/runtime";
 import { classifyApiError, jsonError, jsonOk } from "@/core/utils/http";
 import { listDecisionsBySymbol } from "@/adapters/db/repositories/decisions_repo";
 import { listRawSignalsBySymbol } from "@/adapters/db/repositories/signals_raw_repo";
@@ -14,6 +14,7 @@ import { normalizeKrSymbol, normalizeSymbol } from "@/core/pipeline/stages/norma
 import { lookupKrTickerName } from "@/core/pipeline/stages/normalize/kr_ticker_cache";
 import { lookupSecTickerName } from "@/core/pipeline/stages/normalize/ticker_cache";
 import { horizonLabelKo, marketScopeLabelKo, verdictLabelKo } from "@/core/presentation/terms";
+import { assertRateLimit } from "@/security/rate_limit";
 
 const MAX_LIMIT = 200;
 
@@ -145,6 +146,11 @@ export async function GET(req: NextRequest) {
     let onDemandRun: SymbolReport["onDemandRun"] | undefined;
 
     if (shouldRefresh) {
+      assertRateLimit(req, {
+        namespace: "agent_symbol_report_refresh",
+        limit: getNumberEnv("SYMBOL_REPORT_REFRESH_RATE_LIMIT", 10),
+        windowMs: getNumberEnv("SYMBOL_REPORT_REFRESH_RATE_WINDOW_MS", 60_000)
+      });
       const run = await runPipeline({
         triggerType: "manual",
         marketScope: scope,

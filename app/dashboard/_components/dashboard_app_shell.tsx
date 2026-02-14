@@ -128,7 +128,7 @@ function ShellInner({ children }: { children: React.ReactNode }) {
   }, [runningUS, runningKR]);
 
   const tokenStateText = useMemo(() => {
-    if (!token) return "저장된 토큰 없음 (로컬 개발 허용)";
+    if (!token) return "저장된 토큰 없음";
     return `토큰 저장됨 (${Math.min(token.length, 16)}자)`;
   }, [token]);
 
@@ -139,6 +139,7 @@ function ShellInner({ children }: { children: React.ReactNode }) {
       missing_env: "필수 환경변수가 누락되었습니다. DATABASE_URL / LLM_PROVIDER를 확인하세요.",
       forbidden_env: "금지된 거래 관련 환경변수가 감지되었습니다. 브로커/거래 키를 제거하세요.",
       db_error: "데이터베이스 연결 또는 쿼리에 실패했습니다. Postgres와 마이그레이션을 확인하세요.",
+      rate_limited: "요청이 너무 많습니다. 잠시 후 다시 시도하세요.",
       unknown_error: "알 수 없는 오류가 발생했습니다. 서버 로그를 확인하세요."
     };
   }, []);

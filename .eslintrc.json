@@ -1,0 +1,17 @@
+{
+  "extends": [
+    "next/core-web-vitals"
+  ],
+  "ignorePatterns": [
+    ".next/",
+    ".next-dev/",
+    "node_modules/",
+    "example/"
+  ],
+  "rules": {
+    "react-hooks/purity": "off",
+    "react-hooks/set-state-in-effect": "off",
+    "react-hooks/preserve-manual-memoization": "off",
+    "react-hooks/use-memo": "off"
+  }
+}

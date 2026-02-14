@@ -43,8 +43,7 @@ export function createGLMProvider(): LLMProvider {
       });
 
       if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`GLM error: ${res.status} ${text}`);
+        throw new Error(`GLM error: ${res.status}`);
       }
 
       const data = (await res.json()) as {

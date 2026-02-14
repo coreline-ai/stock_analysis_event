@@ -26,11 +26,12 @@ export function createGeminiProvider(): LLMProvider {
     name: "gemini",
     async complete(req: LLMRequest): Promise<string> {
       const model = req.model || getEnv("GEMINI_MODEL", "gemini-2.0-flash") || "gemini-2.0-flash";
-      const endpoint = `${baseUrl}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+      const endpoint = `${baseUrl}/models/${encodeURIComponent(model)}:generateContent`;
       const res = await fetchLlmWithTimeout(endpoint, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          "x-goog-api-key": apiKey
         },
         body: JSON.stringify({
           systemInstruction: {
@@ -46,8 +47,7 @@ export function createGeminiProvider(): LLMProvider {
       });
 
       if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`Gemini error: ${res.status} ${text}`);
+        throw new Error(`Gemini error: ${res.status}`);
       }
 
       const data = (await res.json()) as GeminiResponse;

@@ -1,11 +1,12 @@
 import type { NextRequest } from "next/server";
 import { assertApiAuth } from "@/security/auth";
-import { assertNoForbiddenEnv } from "@/config/runtime";
+import { assertNoForbiddenEnv, getNumberEnv } from "@/config/runtime";
 import { runPipeline } from "@/core/pipeline/run_pipeline";
 import { classifyApiError, jsonError, jsonOk } from "@/core/utils/http";
 import { logAuthFailure } from "@/security/log";
 import { parseMarketScope, parseStrategyKey } from "@/core/pipeline/strategy_keys";
 import type { LLMProviderName } from "@/adapters/llm/provider";
+import { assertRateLimit } from "@/security/rate_limit";
 
 interface TriggerBody {
   marketScope?: string;
@@ -26,6 +27,11 @@ export async function POST(req: NextRequest) {
   try {
     assertNoForbiddenEnv();
     assertApiAuth(req);
+    assertRateLimit(req, {
+      namespace: "agent_trigger",
+      limit: getNumberEnv("TRIGGER_RATE_LIMIT", 6),
+      windowMs: getNumberEnv("TRIGGER_RATE_WINDOW_MS", 60_000)
+    });
     const queryScope = req.nextUrl.searchParams.get("scope") ?? req.nextUrl.searchParams.get("marketScope");
     const parsed = (await req.json().catch(() => ({}))) as TriggerBody;
     const marketScopeFromBody =

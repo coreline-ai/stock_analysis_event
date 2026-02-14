@@ -1,4 +1,5 @@
 import { assertNoForbiddenEnv, getEnv, getNumberEnv } from "@/config/runtime";
+import { randomBytes } from "node:crypto";
 import { LIMITS } from "@/config/limits";
 import { resolveStrategyLimits } from "@/config/strategy_limits";
 import { runGather } from "@/core/pipeline/stages/gather";
@@ -75,7 +76,7 @@ export async function runPipeline(opts: RunPipelineOptions): Promise<RunPipeline
   const decideDeadlineMs = hardDeadlineMs - persistReserveMs;
 
   const startedAt = nowIso();
-  const runId = sha256(`${startedAt}-${Math.random().toString(36).slice(2)}`);
+  const runId = sha256(`${startedAt}-${randomBytes(16).toString("hex")}`);
   const logger = createLogger(runId);
   let status: AgentRunStatus = "success";
   let errorSummary: string | null = null;

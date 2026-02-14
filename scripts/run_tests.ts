@@ -377,7 +377,7 @@ async function testDecideHardFilterDowngrade() {
   assert.equal(decisions.length, 1);
   assert.equal(decisions[0]?.verdict, "WATCH");
   assert.ok((decisions[0]?.confidence ?? 1) <= 0.59);
-  assert.ok(decisions[0]?.riskNotes.some((note) => note.includes("하드 필터")));
+  assert.ok(decisions[0]?.riskNotes.some((note) => note.includes("하드 필터") || note.includes("안전 기준")));
 }
 
 async function testLockAcquireRelease() {

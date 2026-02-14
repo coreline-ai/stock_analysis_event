@@ -1,4 +1,5 @@
 import { getEnv } from "@/config/runtime";
+import { randomBytes } from "node:crypto";
 import { query } from "@/adapters/db/client";
 
 export interface LockHandle {
@@ -7,6 +8,10 @@ export interface LockHandle {
 }
 
 const memoryLocks = new Map<string, { token: string; expiresAt: number }>();
+
+function createLockToken(): string {
+  return randomBytes(24).toString("base64url");
+}
 
 function hasDatabaseConfigured(): boolean {
   const value = getEnv("DATABASE_URL");
@@ -17,7 +22,7 @@ function acquireMemoryLock(key: string, ttlMs: number): LockHandle | null {
   const existing = memoryLocks.get(key);
   const now = Date.now();
   if (existing && existing.expiresAt > now) return null;
-  const token = `${now}-${Math.random().toString(36).slice(2)}`;
+  const token = createLockToken();
   memoryLocks.set(key, { token, expiresAt: now + ttlMs });
   return { key, token };
 }
@@ -30,7 +35,7 @@ function releaseMemoryLock(handle: LockHandle): void {
 }
 
 async function acquireDbLock(key: string, ttlMs: number): Promise<LockHandle | null> {
-  const token = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const token = createLockToken();
   const rows = await query<{ lock_key: string }>(
     `
     WITH cleanup AS (

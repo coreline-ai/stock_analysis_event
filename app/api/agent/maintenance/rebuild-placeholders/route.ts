@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { assertApiAuth } from "@/security/auth";
-import { assertNoForbiddenEnv } from "@/config/runtime";
+import { assertNoForbiddenEnv, getNumberEnv } from "@/config/runtime";
 import { classifyApiError, jsonError, jsonOk } from "@/core/utils/http";
 import type { LLMProviderName } from "@/adapters/llm/provider";
 import type { MarketScope } from "@/core/domain/types";
@@ -8,6 +8,7 @@ import { cleanupPlaceholderData } from "@/adapters/db/repositories/maintenance_r
 import { defaultStrategyForScope, parseMarketScope } from "@/core/pipeline/strategy_keys";
 import { runPipeline } from "@/core/pipeline/run_pipeline";
 import { logAuthFailure } from "@/security/log";
+import { assertRateLimit } from "@/security/rate_limit";
 
 interface RebuildBody {
   scopes?: string[];
@@ -73,6 +74,11 @@ export async function POST(req: NextRequest) {
   try {
     assertNoForbiddenEnv();
     assertApiAuth(req);
+    assertRateLimit(req, {
+      namespace: "agent_maintenance_rebuild_placeholders",
+      limit: getNumberEnv("MAINTENANCE_REBUILD_RATE_LIMIT", 2),
+      windowMs: getNumberEnv("MAINTENANCE_REBUILD_RATE_WINDOW_MS", 300_000)
+    });
     const body = (await req.json().catch(() => ({}))) as RebuildBody;
     const scopes = parseScopes(body.scopes);
     if (!scopes) return jsonError("invalid_request", 400, "invalid_request");

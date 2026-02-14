@@ -1,24 +1,18 @@
 import type { NextRequest } from "next/server";
-import { NextResponse } from "next/server";
-
-interface TelemetryEvent {
-  name: string;
-  page?: string;
-  value?: number | string | boolean | null;
-  meta?: Record<string, unknown>;
-  at?: string;
-}
+import { getNumberEnv } from "@/config/runtime";
+import { classifyApiError, jsonError, jsonOk } from "@/core/utils/http";
+import { assertRateLimit } from "@/security/rate_limit";
+import { assertTelemetryContentLength, sanitizeTelemetryEvent } from "@/security/telemetry";
 
 export async function POST(req: NextRequest) {
   try {
-    const body = (await req.json()) as TelemetryEvent;
-    const safe = {
-      name: body?.name ?? "unknown_event",
-      page: body?.page ?? "",
-      value: body?.value ?? null,
-      meta: body?.meta ?? {},
-      at: body?.at ?? new Date().toISOString()
-    };
+    assertRateLimit(req, {
+      namespace: "telemetry_event",
+      limit: getNumberEnv("TELEMETRY_RATE_LIMIT", 120),
+      windowMs: getNumberEnv("TELEMETRY_RATE_WINDOW_MS", 60_000)
+    });
+    assertTelemetryContentLength(req.headers.get("content-length"));
+    const safe = sanitizeTelemetryEvent(await req.json());
 
     // Internal telemetry stream for GUI flow and basic web-vitals.
     console.info(
@@ -29,9 +23,9 @@ export async function POST(req: NextRequest) {
       })
     );
 
-    return NextResponse.json({ ok: true });
+    return jsonOk({ accepted: true });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "invalid_payload";
-    return NextResponse.json({ ok: false, error: message }, { status: 400 });
+    const mapped = classifyApiError(err);
+    return jsonError(mapped.message, mapped.status, mapped.code);
   }
 }
