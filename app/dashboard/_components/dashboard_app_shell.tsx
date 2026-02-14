@@ -236,6 +236,12 @@ function ShellInner({ children }: { children: React.ReactNode }) {
       </a>
       <aside className="dash-sidebar">
         <div className="dash-brand">
+          <div className="dash-brand-top" aria-label="Coreline 브랜딩">
+            <span className="dash-brand-logo" aria-hidden="true">
+              <img src="/coreline-icon.svg" alt="" className="dash-brand-logo-img" />
+            </span>
+            <strong className="dash-brand-name">Coreline</strong>
+          </div>
           <h2>리서치 엔진</h2>
           <p>자동 분석 대시보드</p>
         </div>

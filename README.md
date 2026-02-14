@@ -1,382 +1,139 @@
 # DeepStock Research Engine
 
 <div align="center">
-  <img src="https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript">
-  <img src="https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white" alt="Next.js">
-  <img src="https://img.shields.io/badge/PostgreSQL-336791?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL">
-  <img src="https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white" alt="Node.js">
-  <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License: MIT">
+  <img src="public/coreline-icon.svg" alt="Coreline" width="56" />
+  <br />
+  <strong>Coreline · Research-Only Stock Analysis Engine</strong>
+  <br />
+  <sub>브로커 주문 실행 없이 시그널 수집 · 점수화 · 판단 · 리포트 생성</sub>
 </div>
+
+<br />
 
 <div align="center">
-  <h3>브로커 실행 없이 자동으로 시그널을 수집, 점수화, 생성하는 리서치 전용 주식 분석 엔진</h3>
-  <p>미국 및 한국 시장을 위한 연구 품질의 타이밍 인사이트 제공</p>
+  <img src="https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white" alt="Next.js" />
+  <img src="https://img.shields.io/badge/PostgreSQL-336791?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL" />
+  <img src="https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white" alt="Node.js" />
 </div>
 
----
+## 개요
+DeepStock는 미국/한국 시장 데이터를 수집하고, 정량/이벤트/시장반응 신호를 점수화해 AI 판단과 리포트를 생성하는 **리서치 전용** 시스템입니다.
 
-## 🚀 주요 기능
+- 실거래 주문 기능 없음
+- 수동 트리거 기반 실행(주기 스케줄 제거)
+- 대시보드 중심 운영(`Signals`, `Decisions`, `Reports`, `Runs`)
 
-- **다중 소스 시그널 수집**: Reddit, StockTwits, SEC, 뉴스, 크립토, 한국 시장 소스에서 시그널 수집
-- **AI 기반 의사결정**: 신뢰도 수준과 전략 추천을 포함한 매수/보유/매도 의사결정 생성
-- **포괄적인 일일 리포트**: 테마, 리스크, 시장 인사이트를 포함한 상세 일일 요약 생성
-- **모듈형 파이프라인 아키텍처**: 타임박스 및 안전 가드를 포함한 독립적 단계
-- **리서치 전용 설계**: 브로커 실행 없음 - 분석 전용으로 설계됨
-- **다중 시장 지원**: 미국 및 한국 시장 동시 지원
-- **실시간 데이터 처리**: 효율적인 데이터 처리를 통한 빠른 파이프라인 실행
+## 핵심 기능
+- 다중 소스 수집: Reddit, StockTwits, SEC, News, Naver, DART 등
+- 파이프라인 처리: Gather → Normalize → Score → Decide → Report
+- AI 판단: `BUY_NOW` / `WATCH` / `AVOID` + 신뢰도 + 보유 기간
+- 시각화: 리스크 히트맵, 근거 시그널 그래프, 트리거 도달률
+- 보호 장치: 실행 락, 하드 데드라인, 환경 변수 가드
 
-## 📊 아키텍처
-
+## 시스템 구조
+```text
+app/                # Next.js 앱 라우트 + 대시보드 UI
+app/api/            # API 엔드포인트
+src/core/           # 파이프라인/도메인 로직
+src/adapters/       # DB/LLM/외부 소스 어댑터
+db/                 # DB 스키마/마이그레이션
+scripts/            # 테스트/진단/운영 스크립트
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    DeepStock Research                    │
-├─────────────────────────────────────────────────────────────┤
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────┐ │
-│  │  Frontend   │  │   API       │  │  Pipeline   │  │ DB  │ │
-│  │ (Next.js)   │  │ (Next.js)   │  │ (Core)      │  │     │ │
-│  └─────────────┘  └─────────────┘  └─────────────┘  └─────┘ │
-└─────────────────────────────────────────────────────────────┘
-```
 
-### 파이프라인 단계
-
-1. **Gather**: 다양한 소스에서 시그널 수집
-2. **Normalize**: 시그널 데이터 표준화 및 보강
-3. **Score**: 시그널 중요도 및 관련성 평가
-4. **Decide**: AI 기반 트레이딩 의사결정 생성
-5. **Report**: 일일 요약 리포트 생성
-
-## 📥 설치
-
+## 빠른 시작
 ```bash
-# 저장소 클론
-git clone https://github.com/yourusername/deepstock-research-only.git
-cd deepstock-research-only
-
-# 의존성 설치
 npm install
-
-# 환경 변수 설정
 cp .env.example .env
-# .env 파일에 구성 정보 추가
+# .env 값 채우기 (최소: DATABASE_URL, LLM_PROVIDER, provider API key)
 
-# 개발 서버 시작
+npm run db:up
+npm run db:migrate
 npm run dev
 ```
 
-## ⚙️ 설정
+기본 접속:
+- 앱: `http://localhost:3000`
+- 대시보드: `http://localhost:3000/dashboard`
 
-### 데이터베이스 설정
-
-프로젝트는 PostgreSQL 데이터베이스를 사용하며, 다음 환경 변수를 통해 구성합니다:
+## 필수 환경 변수
+최소 실행 기준:
 
 ```env
-# 데이터베이스 연결
-DATABASE_URL=postgresql://user:password@localhost:5432/deepstock
+DATABASE_URL=postgres://USER:PASSWORD@HOST:5432/DBNAME
+LLM_PROVIDER=glm   # glm | openai | gemini
+
+# provider별 키 중 하나 이상
+GLM_API_KEY=
+OPENAI_API_KEY=
+GEMINI_API_KEY=
 ```
 
-### 파이프라인 설정
+주요 실행 설정:
 
 ```env
-# 시장 범위 (US, KR, ALL)
-DEFAULT_MARKET_SCOPE=US
-
-# 데이터 소스 활성화
-KR_MARKET_ENABLED=true
-NAVER_ENABLED=true
-DART_ENABLED=true
-KR_COMMUNITY_ENABLED=true
-KR_NEWS_ENABLED=true
-KR_RESEARCH_ENABLED=true
-KR_GLOBAL_CONTEXT_ENABLED=true
-
-# 파이프라인 제한
-GATHER_MAX_ITEMS_PER_SOURCE=200
-SCORE_TOP_N=50
-DECIDE_TOP_N=10
+DEFAULT_MARKET_SCOPE=KR        # US | KR | ALL
+DEFAULT_STRATEGY_KEY=kr_default
 RUN_MAX_SECONDS=25
+PIPELINE_PERSIST_RESERVE_MS=3500
 MIN_SECONDS_BETWEEN_RUNS=120
 
-# LLM 설정
-LLM_MAX_SIGNALS_PER_RUN=10
-LLM_MAX_CALLS_PER_RUN=10
-LLM_MAX_TOKENS_PER_CALL=1500
+API_TOKEN=CHANGE_ME_LONG_RANDOM
+DEV_AUTH_BYPASS=true
 ```
 
-### 보안 설정
+참고: 전체 항목은 `.env.example`를 기준으로 관리합니다.
 
-```env
-# 브로커 실행 방지 (리서치 전용)
-BROKER_EXECUTION_DISABLED=true
-
-# API 인증
-API_SECRET_KEY=your-secret-key
-```
-
-## 🚀 사용 방법
-
-### API 엔드포인트
-
-| 엔드포인트 | 메서드 | 설명 |
-|----------|--------|-------------|
-| `/api/health` | GET | 시스템 상태 확인 |
-| `/api/agent/trigger` | POST | 파이프라인 실행 트리거 (인증 필요) |
-| `/api/agent/symbols/search` | GET | 심볼 검색 |
-| `/api/agent/symbols/resolve` | GET | 심볼 정보 확인 |
-| `/api/agent/symbol-report` | GET | 심볼 분석 리포트 |
-
-### 대시보드
-
-웹 인터페이스를 `http://localhost:3000/dashboard`에서 접속하여:
-
-- 수집된 시그널 및 소스 확인
-- 신뢰도 수준과 함께 점수화된 결과 확인
-- AI 생성 트레이딩 의사결정 확인
-- 포괄적인 일일 리포트 검토
-- 시스템 설정 및 기본 설정 구성
-
-## 🛠️ 개발
-
-### 테스트 실행
+## 실행 방식
+분석 실행은 API 또는 대시보드 버튼으로 수행합니다.
 
 ```bash
-# 모든 테스트 실행
-npm test
-
-# GUI 품질 검사 실행
-npm run test:gui
-
-# GUI 기능 검사 실행
-npm run test:gui:features
-
-# 브랜딩 검사 실행
-npm run branding:check
-
-# 데이터베이스 마이그레이션 실행
-npm run db:migrate
+curl -X POST http://localhost:3000/api/agent/trigger \
+  -H "Content-Type: application/json" \
+  -H "x-api-token: $API_TOKEN" \
+  -d '{"marketScope":"KR","strategyKey":"kr_default"}'
 ```
 
-### 개발 스크립트
+## 주요 API
+| Endpoint | Method | 설명 |
+|---|---|---|
+| `/api/health` | `GET` | 헬스 체크 |
+| `/api/agent/summary` | `GET` | 대시보드 요약 |
+| `/api/agent/trigger` | `POST` | 분석 파이프라인 수동 실행 |
+| `/api/agent/status` | `GET` | 실행 이력 조회 |
+| `/api/agent/decisions` | `GET` | 판단 결과 조회 |
+| `/api/agent/reports` | `GET` | 일일 리포트 조회 |
+| `/api/agent/signals/raw` | `GET` | 원시 신호 조회 |
+| `/api/agent/signals/scored` | `GET` | 점수 신호 조회 |
+| `/api/agent/symbol-report` | `GET` | 개별 종목 리포트 |
+| `/api/agent/symbols/resolve` | `GET` | 심볼 코드 해석 |
+| `/api/agent/symbols/search` | `GET` | 심볼 검색 |
 
+## 자주 쓰는 스크립트
 ```bash
-# 개발 서버 시작
-npm run dev
-
-# 3333 포트에서 개발 서버 시작
-npm run dev:3333
-
-# Docker를 통한 개발 서버 시작
-npm run dev:up
-
-# 개발 환경 중지
-npm run dev:down
-
-# 개발 상태 확인
-npm run dev:status
+npm run dev                 # 개발 서버
+npm run dev:3333            # 개발 서버(3333)
+npm run build               # 프로덕션 빌드
+npm run start               # 프로덕션 실행
+npm run lint                # 린트
+npm test                    # 기본 테스트
+npm run test:gui            # GUI 품질 테스트
+npm run test:gui:features   # GUI 기능 테스트
+npm run db:up               # 로컬 DB up
+npm run db:down             # 로컬 DB down
+npm run db:migrate          # 마이그레이션
 ```
 
-## 🔍 코드 분석 (상세)
+## 운영 메모
+- Research-only 모드로 브로커/트레이딩 관련 env가 감지되면 실행을 차단합니다.
+- 실행 중복 방지를 위해 DB 기반 lock(`pipeline_locks`)을 사용합니다.
+- 긴 실행 방지를 위해 파이프라인/스테이지 타임박스를 적용합니다.
 
-### 코어 파이프라인 구조
+## 문제 해결
+- `db_error(...)`: `DATABASE_URL`/DB 프로세스/마이그레이션 상태 확인
+- `missing_env`: 필수 env 누락 (`DATABASE_URL`, `LLM_PROVIDER`, provider key)
+- `unauthorized`: `x-api-token` 또는 `API_TOKEN` 불일치
+- `forbidden_env`: 금지된 거래 관련 env 제거 필요
 
-#### 파이프라인 실행 흐름 ([src/core/pipeline/run_pipeline.ts](src/core/pipeline/run_pipeline.ts))
-
-```typescript
-export async function runPipeline(opts: RunPipelineOptions): Promise<RunPipelineResult> {
-  // 1. 환경 검증 및 초기 설정
-  assertNoForbiddenEnv();
-  const defaultScope = parseMarketScope(getEnv("DEFAULT_MARKET_SCOPE", "US"), "US");
-
-  // 2. 시장 범위 및 전략 설정
-  const marketScope = opts.marketScope ?? defaultScope;
-  const strategyKey = parseStrategyKey(opts.strategyKey ?? defaultStrategy, marketScope);
-
-  // 3. 락 획득 (동시 실행 방지)
-  const lockHandle = await lockAdapter.acquire(`deepstock:pipeline:${marketScope.toLowerCase()}`, 10 * 60 * 1000);
-
-  // 4. 데이터 수집 단계
-  const gatherResult = await runWithDeadline("gather", () => runGather(marketScope, limits));
-
-  // 5. 데이터 정규화 및 점수화
-  let normalized = normalizeSignals(rawWithIds);
-  if (marketScope === "KR" || marketScope === "ALL") {
-    normalized = await enrichKrNormalizedSignals(normalized, hardDeadlineMs);
-  }
-
-  // 6. AI 기반 의사결정 생성
-  const generatedDecisions = await decideSignals(scoredWithIds, llmProvider, decideDeadlineMs, { marketScope, limits: effectiveLimits });
-
-  // 7. 리포트 생성
-  const report = generateReport(persistedDecisions, scoredWithIds, marketScope);
-
-  // 8. 실행 기록 저장
-  await insertAgentRun({
-    triggerType: opts.triggerType,
-    marketScope,
-    strategyKey,
-    startedAt,
-    finishedAt: nowIso(),
-    status,
-    gatheredCounts,
-    scoredCount: scoredSignals.length,
-    decidedCount: persistedDecisions.length,
-    llmCalls: generatedDecisions.length,
-    llmTokensEstimated: generatedDecisions.length * limits.llmMaxTokensPerCall,
-    stageTimingsMs: stageTimings,
-    errorSummary,
-    createdAt: startedAt
-  });
-}
-```
-
-### 데이터베이스 모델
-
-#### 일일 리포트 저장소 ([src/adapters/db/repositories/daily_reports_repo.ts](src/adapters/db/repositories/daily_reports_repo.ts))
-
-```typescript
-export async function upsertDailyReport(report: DailyReport): Promise<string> {
-  const rows = await query<{ id: string }>(
-    `
-    INSERT INTO daily_reports
-      (report_date, market_scope, summary_markdown, top_buy_now, top_watch, themes, risks, created_at)
-    VALUES
-      ($1,$2,$3,$4,$5,$6,$7,$8)
-    ON CONFLICT (report_date, market_scope)
-    DO UPDATE SET
-      summary_markdown = EXCLUDED.summary_markdown,
-      top_buy_now = EXCLUDED.top_buy_now,
-      top_watch = EXCLUDED.top_watch,
-      themes = EXCLUDED.themes,
-      risks = EXCLUDED.risks,
-      created_at = EXCLUDED.created_at
-    RETURNING id
-    `,
-    [
-      report.reportDate,
-      report.marketScope ?? "US",
-      report.summaryMarkdown,
-      report.topBuyNow,
-      report.topWatch,
-      report.themes,
-      report.risks,
-      report.createdAt
-    ]
-  );
-  return rows[0]?.id ?? "";
-}
-```
-
-### 데이터 수집 모듈
-
-#### 수집 작업 구성 ([src/core/pipeline/stages/gather/index.ts](src/core/pipeline/stages/gather/index.ts))
-
-```typescript
-export function buildGatherTasks(scope: MarketScope): GatherTask[] {
-  const usTasks: GatherTask[] = [
-    { name: "reddit", fn: () => gatherReddit(25) },
-    { name: "stocktwits", fn: () => gatherStockTwits(15) },
-    { name: "sec", fn: () => gatherSecEdgar(20) },
-    { name: "news", fn: () => gatherNews(20) },
-    { name: "crypto", fn: () => gatherCrypto() }
-  ];
-
-  const krEnabled = getBooleanEnv("KR_MARKET_ENABLED", true);
-  const krTasks: GatherTask[] = [];
-
-  if (krEnabled) {
-    if (getBooleanEnv("NAVER_ENABLED", true)) {
-      krTasks.push({ name: "naver", fn: () => gatherNaver(25) });
-    }
-    if (getBooleanEnv("DART_ENABLED", true)) {
-      krTasks.push({ name: "dart", fn: () => gatherDart(30) });
-    }
-    // ... 기타 한국 시장 소스
-  }
-
-  return scope === "US" ? usTasks : scope === "KR" ? krTasks : [...usTasks, ...krTasks];
-}
-```
-
-### 보안 및 안정성
-
-#### 환경 변수 검증 ([src/config/runtime.ts](src/config/runtime.ts))
-
-```typescript
-export function assertNoForbiddenEnv() {
-  const forbiddenKeys = ["BROKER_API_KEY", "BROKER_SECRET", "TRADING_API_KEY"];
-  for (const key of forbiddenKeys) {
-    if (process.env[key]) {
-      throw new Error(`Forbidden environment variable detected: ${key}`);
-    }
-  }
-}
-```
-
-### 성능 최적화
-
-#### 타임박스 시스템 ([src/core/pipeline/run_pipeline.ts](src/core/pipeline/run_pipeline.ts))
-
-```typescript
-const effectiveRunMaxSeconds = targetSymbol ? Math.max(limits.runMaxSeconds, symbolRunMaxSeconds) : limits.runMaxSeconds;
-const persistReserveMs = Math.max(1000, getNumberEnv("PIPELINE_PERSIST_RESERVE_MS", 3500));
-const hardDeadlineMs = Date.now() + effectiveRunMaxSeconds * 1000;
-const decideDeadlineMs = hardDeadlineMs - persistReserveMs;
-
-async function runWithDeadline<T>(label: string, fn: () => Promise<T>): Promise<T> {
-  const remainingMs = hardDeadlineMs - Date.now();
-  if (remainingMs <= 0) throw new Error("timebox_exceeded");
-
-  return await Promise.race([
-    fn(),
-    new Promise<T>((_, reject) => {
-      setTimeout(() => reject(new Error("timebox_exceeded")), remainingMs);
-    })
-  ]);
-}
-```
-
-## 🤝 기여 방법
-
-기여는 환영합니다! 다음 단계를 따라주세요:
-
-1. 저장소 포크
-2. 기능 브랜치 생성 (`git checkout -b feature/AmazingFeature`)
-3. 변경 사항 커밋 (`git commit -m 'Add some AmazingFeature'`)
-4. 브랜치로 푸시 (`git push origin feature/AmazingFeature`)
-5. 풀 리퀘스트 열기
-
-### 코드 표준
-
-- TypeScript最佳实践 따르기
-- 일관된 코드 스타일 유지
-- 포괄적인 테스트 작성
-- 문서화 업데이트
-- 제출 전 모든 테스트 통과 확인
-
-## 📄 라이선스
-
-이 프로젝트는 MIT 라이선스로 배포됩니다. 자세한 내용은 [LICENSE](LICENSE) 파일을 참조하세요.
-
-```
-MIT License
-
-Copyright (c) 2024 DeepStock Research
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
+## 라이선스
+MIT License. 자세한 내용은 `LICENSE`를 참고하세요.
