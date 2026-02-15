@@ -6,6 +6,10 @@
   <h3>Research-Only Stock Analysis Engine</h3>
   <p>브로커 주문 실행 없이 시그널 수집 · 점수화 · 판단 · 리포트 생성</p>
 
+<p align="center">
+<img width="1518" height="911" alt="스크린샷 2026-02-15 오후 4 40 31" src="https://github.com/user-attachments/assets/1d76ed9d-b9ba-4868-bf16-b7f35d9697b5" />
+</p>
+
   <a href="https://github.com/coreline-ai/stock_analysis_event/issues">
     <img src="https://img.shields.io/github/issues/coreline-ai/stock_analysis_event?style=flat-square" alt="Issues" />
   </a>
