@@ -9,9 +9,9 @@
 </div>
 
 <br />
-
+<img width="1518" height="911" alt="스크린샷 2026-02-15 오후 4 40 31" src="https://github.com/user-attachments/assets/ae8d587e-e1d0-4c06-b93f-27a2ccaf7c50" />
 <p align="center">
-<img width="60%" height="60%" alt="스크린샷 2026-02-14 오후 2 44 56" src="https://github.com/user-attachments/assets/724dd0e3-718c-4386-8e67-1f21359456fe" />
+
 </p>
 
 <div align="center">
